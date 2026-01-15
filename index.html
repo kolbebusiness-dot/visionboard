@@ -179,147 +179,70 @@
             background: #f25a5a;
         }
 
-        .collage-wrapper {
-            position: relative;
+        .grid-container {
             width: calc(100% - 30px);
             margin: 15px;
-        }
-
-        .collage-container {
-            position: relative;
-            width: 100%;
-            height: 60vh;
             background: #000;
             border: 2px solid #333;
             border-radius: 10px;
+            padding: 10px;
+            display: grid;
+            gap: 10px;
+        }
+
+        .vision-grid {
+            grid-template-columns: repeat(2, 1fr);
+            min-height: 70vh;
+        }
+
+        .history-grid {
+            grid-template-columns: repeat(3, 1fr);
+            min-height: 40vh;
+        }
+
+        .grid-item {
+            aspect-ratio: 1;
+            background: #1a1a1a;
+            border: 2px solid #333;
+            border-radius: 8px;
             overflow: hidden;
-            touch-action: none;
-            cursor: grab;
-        }
-
-        .collage-container:active {
-            cursor: grabbing;
-        }
-
-        .collage-canvas {
-            position: absolute;
-            width: 200%;
-            height: 200%;
-            min-width: 200%;
-            min-height: 200%;
-            touch-action: none;
-            left: 0;
-            top: 0;
-            transform-origin: center center;
-        }
-
-        .fullscreen-btn {
-            position: absolute;
-            bottom: 10px;
-            right: 10px;
-            width: 45px;
-            height: 45px;
-            background: rgba(74, 144, 226, 0.9);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            z-index: 50;
-            font-size: 20px;
-        }
-
-        .fullscreen-mode .fullscreen-btn {
-            font-size: 24px;
-        }
-
-        .fullscreen-mode {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: 500;
-            background: #000;
-            margin: 0;
-            border-radius: 0;
-        }
-
-        .fullscreen-mode .collage-container {
-            height: 100vh;
-            border: none;
-            border-radius: 0;
-        }
-
-        .collage-image {
-            position: absolute;
+            position: relative;
             cursor: move;
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
-            transition: box-shadow 0.2s;
             touch-action: none;
         }
 
-        .collage-image.selected {
-            box-shadow: 0 0 0 3px #4a90e2;
+        .grid-item.dragging {
+            opacity: 0.5;
+            z-index: 1000;
         }
 
-        .collage-image.dragging {
-            z-index: 100 !important;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+        .grid-item.drag-over {
+            border-color: #4a90e2;
+            background: rgba(74, 144, 226, 0.1);
         }
 
-        .collage-image img {
+        .grid-item img {
             width: 100%;
             height: 100%;
             object-fit: cover;
             pointer-events: none;
         }
 
-        .collage-image .rotate-handle {
+        .grid-item .delete-btn {
             position: absolute;
-            top: -40px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 40px;
-            height: 40px;
-            background: #4a90e2;
-            border-radius: 50%;
-            cursor: grab;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            touch-action: none;
-        }
-
-        .collage-image.selected .rotate-handle {
-            display: flex;
-        }
-
-        .collage-image .rotate-handle:active {
-            cursor: grabbing;
-        }
-
-        .collage-image .delete-btn {
-            position: absolute;
-            top: -15px;
-            right: -15px;
-            width: 35px;
-            height: 35px;
-            background: #e24a4a;
+            top: 5px;
+            right: 5px;
+            width: 30px;
+            height: 30px;
+            background: rgba(226, 74, 74, 0.9);
             border-radius: 50%;
             cursor: pointer;
-            display: none;
+            display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 22px;
+            font-size: 18px;
             line-height: 1;
-        }
-
-        .collage-image.selected .delete-btn {
-            display: flex;
+            z-index: 10;
         }
 
         .history-container {
@@ -366,37 +289,6 @@
 
         .age-input-group input {
             margin-bottom: 0;
-        }
-
-        .history-collage {
-            width: 100%;
-            height: 200px;
-            background: #000;
-            border: 1px solid #555;
-            border-radius: 5px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .history-collage:hover, .history-collage:active {
-            border-color: #4a90e2;
-        }
-        
-        .history-collage-wrapper {
-            cursor: pointer;
-        }
-        
-        .history-collage-wrapper .collage-image {
-            pointer-events: none;
-        }
-
-        .history-collage-placeholder {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100%;
-            color: #666;
-            font-size: 14px;
         }
 
         .add-row-btn {
@@ -485,29 +377,24 @@
         <div class="page active" id="visionPage">
             <div class="controls">
                 <div class="control-group">
-                    <label>Select Collage</label>
-                    <select id="collageSelect" onchange="loadCollage()">
-                        <option value="">Select a collage...</option>
+                    <label>Select Board</label>
+                    <select id="boardSelect" onchange="loadBoard()">
+                        <option value="">Select a board...</option>
                     </select>
                 </div>
                 <div class="control-group">
-                    <label>Collage Name</label>
-                    <input type="text" id="collageName" placeholder="Enter collage name">
+                    <label>Board Name</label>
+                    <input type="text" id="boardName" placeholder="Enter board name">
                 </div>
                 <div class="control-group">
                     <label>Add Images</label>
                     <input type="file" id="imageUpload" accept="image/*" multiple onchange="addImages(event)">
                 </div>
-                <button onclick="saveCollage()">Save Collage</button>
-                <button onclick="createNewCollage()">Create New Collage</button>
-                <button class="delete" onclick="deleteCollage()">Delete Current Collage</button>
+                <button onclick="saveBoard()">Save Board</button>
+                <button onclick="createNewBoard()">Create New Board</button>
+                <button class="delete" onclick="deleteBoard()">Delete Current Board</button>
             </div>
-            <div class="collage-wrapper" id="collageWrapper">
-                <div class="collage-container" id="collageContainer">
-                    <div class="collage-canvas" id="collageCanvas"></div>
-                </div>
-                <div class="fullscreen-btn" id="fullscreenBtn" onclick="enterFullscreen()">⛶</div>
-            </div>
+            <div class="grid-container vision-grid" id="visionGrid"></div>
         </div>
 
         <div class="page" id="historyPage">
@@ -519,111 +406,75 @@
         </div>
     </div>
 
-    <div class="modal" id="selectCollageModal">
+    <div class="modal" id="selectBoardModal">
         <div class="modal-content">
-            <span class="close-modal" onclick="closeSelectCollageModal()">&times;</span>
-            <h2>Select or Create Collage</h2>
+            <span class="close-modal" onclick="closeSelectBoardModal()">&times;</span>
+            <h2>Select or Create Board</h2>
             <div class="control-group">
-                <label>Choose Existing Collage</label>
-                <select id="historyCollageSelect">
-                    <option value="">Create new collage...</option>
+                <label>Choose Existing Board</label>
+                <select id="historyBoardSelect">
+                    <option value="">Create new board...</option>
                 </select>
             </div>
             <div class="control-group">
-                <label>Or Create New Collage</label>
-                <input type="text" id="newHistoryCollageName" placeholder="New collage name">
+                <label>Or Create New Board</label>
+                <input type="text" id="newHistoryBoardName" placeholder="New board name">
             </div>
-            <button onclick="confirmCollageSelection()">Continue</button>
-            <button onclick="closeSelectCollageModal()">Cancel</button>
+            <button onclick="confirmBoardSelection()">Continue</button>
+            <button onclick="closeSelectBoardModal()">Cancel</button>
         </div>
     </div>
 
     <script>
-        let collages = {};
-        let currentCollageId = null;
+        let boards = {};
+        let currentBoardId = null;
         let historyRows = [];
-        let draggedElement = null;
-        let selectedElement = null;
-        let isDragging = false;
-        let isRotating = false;
-        let isScaling = false;
-        let isCanvasDragging = false;
-        let isCanvasScaling = false;
-        let startX = 0;
-        let startY = 0;
-        let startLeft = 0;
-        let startTop = 0;
-        let startWidth = 0;
-        let startHeight = 0;
-        let startDistance = 0;
-        let rotateStartAngle = 0;
-        let currentRotation = 0;
+        let draggedItem = null;
+        let draggedIndex = -1;
         let currentEditingRowIndex = null;
-        let canvasX = 0;
-        let canvasY = 0;
-        let canvasScale = 0.5;
-        let isFullscreen = false;
-        let touchStartDistance = 0;
-        let initialScale = 1;
-        let initialWidth = 0;
-        let scrollPosition = 0;
 
         function init() {
             loadFromStorage();
-            updateCollageSelect();
+            updateBoardSelect();
             renderHistory();
             
             let visionboardId = null;
-            for (let id in collages) {
-                if (collages[id].name === 'Visionboard') {
+            for (let id in boards) {
+                if (boards[id].name === 'Visionboard') {
                     visionboardId = id;
                     break;
                 }
             }
             
             if (!visionboardId) {
-                visionboardId = 'collage_' + Date.now();
-                collages[visionboardId] = {
+                visionboardId = 'board_' + Date.now();
+                boards[visionboardId] = {
                     name: 'Visionboard',
                     images: []
                 };
                 saveToStorage();
             }
             
-            currentCollageId = visionboardId;
-            updateCollageSelect();
-            document.getElementById('collageSelect').value = visionboardId;
-            document.getElementById('collageName').value = 'Visionboard';
+            currentBoardId = visionboardId;
+            updateBoardSelect();
+            document.getElementById('boardSelect').value = visionboardId;
+            document.getElementById('boardName').value = 'Visionboard';
             
-            if (collages[currentCollageId].canvasX !== undefined) {
-                canvasX = collages[currentCollageId].canvasX;
-                canvasY = collages[currentCollageId].canvasY;
-                canvasScale = collages[currentCollageId].canvasScale || 0.5;
-            }
-            
-            loadCollage();
-            setupTouchHandlers();
-            setupCanvasHandlers();
-            
-            document.addEventListener('click', function(e) {
-                if (!e.target.closest('.collage-image') && selectedElement) {
-                    deselectAll();
-                }
-            });
+            loadBoard();
         }
 
         function loadFromStorage() {
             const saved = localStorage.getItem('visionBoardData');
             if (saved) {
                 const data = JSON.parse(saved);
-                collages = data.collages || {};
-                historyRows = data.historyRows || {};
+                boards = data.boards || {};
+                historyRows = data.historyRows || [];
             }
         }
 
         function saveToStorage() {
             localStorage.setItem('visionBoardData', JSON.stringify({
-                collages: collages,
+                boards: boards,
                 historyRows: historyRows
             }));
         }
@@ -648,17 +499,17 @@
             toggleMenu();
         }
 
-        function updateCollageSelect() {
-            const select = document.getElementById('collageSelect');
-            const historySelect = document.getElementById('historyCollageSelect');
+        function updateBoardSelect() {
+            const select = document.getElementById('boardSelect');
+            const historySelect = document.getElementById('historyBoardSelect');
             
-            select.innerHTML = '<option value="">Select a collage...</option>';
-            historySelect.innerHTML = '<option value="">Create new collage...</option>';
+            select.innerHTML = '<option value="">Select a board...</option>';
+            historySelect.innerHTML = '<option value="">Create new board...</option>';
             
-            Object.keys(collages).forEach(id => {
+            Object.keys(boards).forEach(id => {
                 const option = document.createElement('option');
                 option.value = id;
-                option.textContent = collages[id].name;
+                option.textContent = boards[id].name;
                 select.appendChild(option);
 
                 const historyOption = option.cloneNode(true);
@@ -666,149 +517,84 @@
             });
         }
 
-        function enterFullscreen() {
-            if (isFullscreen) {
-                exitFullscreen();
-            } else {
-                scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
-                const wrapper = document.getElementById('collageWrapper');
-                wrapper.classList.add('fullscreen-mode');
-                document.getElementById('fullscreenBtn').innerHTML = '×';
-                isFullscreen = true;
-            }
-        }
-
-        function exitFullscreen() {
-            const wrapper = document.getElementById('collageWrapper');
-            wrapper.classList.remove('fullscreen-mode');
-            document.getElementById('fullscreenBtn').innerHTML = '⛶';
-            isFullscreen = false;
-            
-            setTimeout(function() {
-                window.scrollTo(0, scrollPosition);
-            }, 10);
-        }
-
-        function deselectAll() {
-            document.querySelectorAll('.collage-image').forEach(el => {
-                el.classList.remove('selected');
-            });
-            selectedElement = null;
-        }
-
-        function selectImage(element) {
-            deselectAll();
-            element.classList.add('selected');
-            selectedElement = element;
-        }
-
-        function createNewCollage() {
-            const id = 'collage_' + Date.now();
-            const name = prompt('Enter collage name:', 'New Collage');
+        function createNewBoard() {
+            const id = 'board_' + Date.now();
+            const name = prompt('Enter board name:', 'New Board');
             
             if (name) {
-                collages[id] = {
+                boards[id] = {
                     name: name,
                     images: []
                 };
-                currentCollageId = id;
-                updateCollageSelect();
-                document.getElementById('collageSelect').value = id;
-                document.getElementById('collageName').value = name;
-                renderCollage();
+                currentBoardId = id;
+                updateBoardSelect();
+                document.getElementById('boardSelect').value = id;
+                document.getElementById('boardName').value = name;
+                renderGrid();
                 saveToStorage();
             }
         }
 
-        function loadCollage() {
-            const selectValue = document.getElementById('collageSelect').value;
-            if (selectValue && collages[selectValue]) {
-                currentCollageId = selectValue;
-                document.getElementById('collageName').value = collages[currentCollageId].name;
-                
-                if (collages[currentCollageId].canvasX !== undefined) {
-                    canvasX = collages[currentCollageId].canvasX;
-                    canvasY = collages[currentCollageId].canvasY;
-                    canvasScale = collages[currentCollageId].canvasScale || 0.5;
-                } else {
-                    canvasX = 0;
-                    canvasY = 0;
-                    canvasScale = 0.5;
-                }
-                
-                const canvas = document.getElementById('collageCanvas');
-                canvas.style.transform = `translate(${canvasX}px, ${canvasY}px) scale(${canvasScale})`;
-                
-                renderCollage();
+        function loadBoard() {
+            const selectValue = document.getElementById('boardSelect').value;
+            if (selectValue && boards[selectValue]) {
+                currentBoardId = selectValue;
+                document.getElementById('boardName').value = boards[currentBoardId].name;
+                renderGrid();
             }
         }
 
-        function saveCollage() {
-            if (!currentCollageId) {
-                alert('Please create or select a collage first');
+        function saveBoard() {
+            if (!currentBoardId) {
+                alert('Please create or select a board first');
                 return;
             }
 
-            const name = document.getElementById('collageName').value.trim();
+            const name = document.getElementById('boardName').value.trim();
             if (name) {
-                collages[currentCollageId].name = name;
-                collages[currentCollageId].canvasX = canvasX;
-                collages[currentCollageId].canvasY = canvasY;
-                collages[currentCollageId].canvasScale = canvasScale;
-                updateCollageSelect();
-                document.getElementById('collageSelect').value = currentCollageId;
+                boards[currentBoardId].name = name;
+                updateBoardSelect();
+                document.getElementById('boardSelect').value = currentBoardId;
                 saveToStorage();
                 renderHistory();
-                alert('Collage saved!');
+                alert('Board saved!');
             }
         }
 
-        function deleteCollage() {
-            if (!currentCollageId) return;
+        function deleteBoard() {
+            if (!currentBoardId) return;
             
-            if (confirm('Are you sure you want to delete this collage?')) {
-                delete collages[currentCollageId];
+            if (confirm('Are you sure you want to delete this board?')) {
+                delete boards[currentBoardId];
                 
                 historyRows.forEach(row => {
-                    if (row.collageId === currentCollageId) {
-                        row.collageId = null;
+                    if (row.boardId === currentBoardId) {
+                        row.boardId = null;
                     }
                 });
                 
-                currentCollageId = null;
-                document.getElementById('collageName').value = '';
-                document.getElementById('collageCanvas').innerHTML = '';
-                updateCollageSelect();
+                currentBoardId = null;
+                document.getElementById('boardName').value = '';
+                document.getElementById('visionGrid').innerHTML = '';
+                updateBoardSelect();
                 saveToStorage();
                 renderHistory();
             }
         }
 
         function addImages(event) {
-            if (!currentCollageId) {
-                alert('Please create or select a collage first');
+            if (!currentBoardId) {
+                alert('Please create or select a board first');
                 return;
             }
 
             const files = event.target.files;
-            const canvas = document.getElementById('collageCanvas');
-            const canvasWidth = canvas.offsetWidth;
-            const canvasHeight = canvas.offsetHeight;
 
             Array.from(files).forEach((file, index) => {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    const imageData = {
-                        id: 'img_' + Date.now() + '_' + index,
-                        src: e.target.result,
-                        x: Math.random() * (canvasWidth - 200),
-                        y: Math.random() * (canvasHeight - 200),
-                        width: 120 + Math.random() * 80,
-                        rotation: (Math.random() - 0.5) * 20
-                    };
-
-                    collages[currentCollageId].images.push(imageData);
-                    createImageElement(imageData);
+                    boards[currentBoardId].images.push(e.target.result);
+                    renderGrid();
                     saveToStorage();
                     renderHistory();
                 };
@@ -818,322 +604,179 @@
             event.target.value = '';
         }
 
-        function renderCollage() {
-            const canvas = document.getElementById('collageCanvas');
-            canvas.innerHTML = '';
+        function renderGrid() {
+            const grid = document.getElementById('visionGrid');
+            grid.innerHTML = '';
 
-            if (currentCollageId && collages[currentCollageId]) {
-                collages[currentCollageId].images.forEach(imageData => {
-                    createImageElement(imageData);
+            if (currentBoardId && boards[currentBoardId]) {
+                boards[currentBoardId].images.forEach((imageSrc, index) => {
+                    const item = createGridItem(imageSrc, index, true);
+                    grid.appendChild(item);
                 });
             }
         }
 
-        function createImageElement(imageData) {
-            const canvas = document.getElementById('collageCanvas');
-            const div = document.createElement('div');
-            div.className = 'collage-image';
-            div.dataset.id = imageData.id;
-            div.style.left = imageData.x + 'px';
-            div.style.top = imageData.y + 'px';
-            div.style.width = imageData.width + 'px';
-            div.style.height = imageData.width + 'px';
-            div.style.transform = `rotate(${imageData.rotation}deg)`;
-
+        function createGridItem(imageSrc, index, draggable) {
+            const item = document.createElement('div');
+            item.className = 'grid-item';
+            item.dataset.index = index;
+            
             const img = document.createElement('img');
-            img.src = imageData.src;
+            img.src = imageSrc;
+            item.appendChild(img);
             
-            const rotateHandle = document.createElement('div');
-            rotateHandle.className = 'rotate-handle';
-            rotateHandle.innerHTML = '↻';
-            
-            const deleteBtn = document.createElement('div');
-            deleteBtn.className = 'delete-btn';
-            deleteBtn.innerHTML = '×';
-            deleteBtn.onclick = function(e) {
-                e.stopPropagation();
-                removeImage(imageData.id);
-            };
+            if (draggable) {
+                const deleteBtn = document.createElement('div');
+                deleteBtn.className = 'delete-btn';
+                deleteBtn.innerHTML = '×';
+                deleteBtn.onclick = function(e) {
+                    e.stopPropagation();
+                    removeImage(index);
+                };
+                item.appendChild(deleteBtn);
 
-            div.appendChild(img);
-            div.appendChild(rotateHandle);
-            div.appendChild(deleteBtn);
-            canvas.appendChild(div);
+                item.draggable = true;
+                
+                item.addEventListener('dragstart', handleDragStart);
+                item.addEventListener('dragover', handleDragOver);
+                item.addEventListener('drop', handleDrop);
+                item.addEventListener('dragend', handleDragEnd);
+                
+                item.addEventListener('touchstart', handleTouchStart, { passive: false });
+                item.addEventListener('touchmove', handleTouchMove, { passive: false });
+                item.addEventListener('touchend', handleTouchEnd);
+            }
+            
+            return item;
         }
 
-        function setupCanvasHandlers() {
-            const container = document.getElementById('collageContainer');
-            const canvas = document.getElementById('collageCanvas');
-
-            container.addEventListener('touchstart', function(e) {
-                if (e.touches.length === 2 && !e.target.closest('.collage-image')) {
-                    e.preventDefault();
-                    isCanvasScaling = true;
-                    const touch1 = e.touches[0];
-                    const touch2 = e.touches[1];
-                    touchStartDistance = Math.hypot(
-                        touch2.clientX - touch1.clientX,
-                        touch2.clientY - touch1.clientY
-                    );
-                    initialScale = canvasScale;
-                } else if (e.touches.length === 1 && 
-                          !e.target.closest('.collage-image') && 
-                          !e.target.closest('.fullscreen-btn')) {
-                    isCanvasDragging = true;
-                    startX = e.touches[0].clientX;
-                    startY = e.touches[0].clientY;
-                    startLeft = canvasX;
-                    startTop = canvasY;
-                }
-            }, { passive: false });
-
-            container.addEventListener('touchmove', function(e) {
-                if (e.touches.length === 2 && isCanvasScaling) {
-                    e.preventDefault();
-                    const touch1 = e.touches[0];
-                    const touch2 = e.touches[1];
-                    const currentDistance = Math.hypot(
-                        touch2.clientX - touch1.clientX,
-                        touch2.clientY - touch1.clientY
-                    );
-                    canvasScale = Math.max(0.3, Math.min(3, initialScale * (currentDistance / touchStartDistance)));
-                    canvas.style.transform = `translate(${canvasX}px, ${canvasY}px) scale(${canvasScale})`;
-                    
-                    if (currentCollageId) {
-                        collages[currentCollageId].canvasScale = canvasScale;
-                        saveToStorage();
-                    }
-                } else if (e.touches.length === 1 && isCanvasDragging) {
-                    const deltaX = e.touches[0].clientX - startX;
-                    const deltaY = e.touches[0].clientY - startY;
-                    canvasX = startLeft + deltaX;
-                    canvasY = startTop + deltaY;
-                    canvas.style.transform = `translate(${canvasX}px, ${canvasY}px) scale(${canvasScale})`;
-                }
-            }, { passive: false });
-
-            container.addEventListener('touchend', function(e) {
-                if (e.touches.length < 2) {
-                    isCanvasScaling = false;
-                }
-                if (e.touches.length === 0) {
-                    isCanvasDragging = false;
-                    
-                    if (currentCollageId) {
-                        collages[currentCollageId].canvasX = canvasX;
-                        collages[currentCollageId].canvasY = canvasY;
-                        saveToStorage();
-                    }
-                }
-            });
-
-            container.addEventListener('mousedown', function(e) {
-                if (!e.target.closest('.collage-image') && 
-                    !e.target.closest('.fullscreen-btn')) {
-                    isCanvasDragging = true;
-                    startX = e.clientX;
-                    startY = e.clientY;
-                    startLeft = canvasX;
-                    startTop = canvasY;
-                    container.style.cursor = 'grabbing';
-                }
-            });
-
-            document.addEventListener('mousemove', function(e) {
-                if (isCanvasDragging) {
-                    const deltaX = e.clientX - startX;
-                    const deltaY = e.clientY - startY;
-                    canvasX = startLeft + deltaX;
-                    canvasY = startTop + deltaY;
-                    canvas.style.transform = `translate(${canvasX}px, ${canvasY}px) scale(${canvasScale})`;
-                }
-            });
-
-            document.addEventListener('mouseup', function() {
-                if (isCanvasDragging) {
-                    isCanvasDragging = false;
-                    container.style.cursor = 'grab';
-                    
-                    if (currentCollageId) {
-                        collages[currentCollageId].canvasX = canvasX;
-                        collages[currentCollageId].canvasY = canvasY;
-                        saveToStorage();
-                    }
-                }
-            });
+        function handleDragStart(e) {
+            draggedItem = this;
+            draggedIndex = parseInt(this.dataset.index);
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
         }
 
-        function setupTouchHandlers() {
-            document.addEventListener('mousedown', handleStart);
-            document.addEventListener('touchstart', handleStart, { passive: false });
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
             
-            document.addEventListener('mousemove', handleMove);
-            document.addEventListener('touchmove', handleMove, { passive: false });
-            
-            document.addEventListener('mouseup', handleEnd);
-            document.addEventListener('touchend', handleEnd);
+            const afterElement = this;
+            if (afterElement !== draggedItem) {
+                afterElement.classList.add('drag-over');
+            }
+            return false;
         }
 
-        function handleStart(e) {
-            const target = e.target;
+        function handleDrop(e) {
+            e.stopPropagation();
+            e.preventDefault();
             
-            if (e.type === 'touchstart' && e.touches.length > 1) {
+            const dropIndex = parseInt(this.dataset.index);
+            
+            if (draggedIndex !== dropIndex) {
+                const images = boards[currentBoardId].images;
+                const draggedImage = images[draggedIndex];
+                images.splice(draggedIndex, 1);
+                images.splice(dropIndex, 0, draggedImage);
+                saveToStorage();
+                renderGrid();
+                renderHistory();
+            }
+            
+            return false;
+        }
+
+        function handleDragEnd(e) {
+            document.querySelectorAll('.grid-item').forEach(item => {
+                item.classList.remove('dragging');
+                item.classList.remove('drag-over');
+            });
+            draggedItem = null;
+            draggedIndex = -1;
+        }
+
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchMoved = false;
+
+        function handleTouchStart(e) {
+            draggedItem = this;
+            draggedIndex = parseInt(this.dataset.index);
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            touchMoved = false;
+            
+            setTimeout(() => {
+                if (!touchMoved && draggedItem === this) {
+                    this.classList.add('dragging');
+                }
+            }, 200);
+        }
+
+        function handleTouchMove(e) {
+            if (!draggedItem) return;
+            
+            const touchX = e.touches[0].clientX;
+            const touchY = e.touches[0].clientY;
+            
+            if (Math.abs(touchX - touchStartX) > 10 || Math.abs(touchY - touchStartY) > 10) {
+                touchMoved = true;
+            }
+            
+            const element = document.elementFromPoint(touchX, touchY);
+            const gridItem = element?.closest('.grid-item');
+            
+            document.querySelectorAll('.grid-item').forEach(item => {
+                item.classList.remove('drag-over');
+            });
+            
+            if (gridItem && gridItem !== draggedItem) {
+                gridItem.classList.add('drag-over');
+            }
+        }
+
+        function handleTouchEnd(e) {
+            if (!draggedItem || !touchMoved) {
+                document.querySelectorAll('.grid-item').forEach(item => {
+                    item.classList.remove('dragging');
+                    item.classList.remove('drag-over');
+                });
+                draggedItem = null;
                 return;
             }
             
-            if (target.classList.contains('collage-image') || 
-                target.closest('.collage-image')) {
-                
-                const collageImage = target.classList.contains('collage-image') ? 
-                    target : target.closest('.collage-image');
-                
-                const rotateHandle = collageImage.querySelector('.rotate-handle');
-                
-                if (target === rotateHandle || target.closest('.rotate-handle')) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    isRotating = true;
-                    draggedElement = collageImage;
-                    
-                    const rect = collageImage.getBoundingClientRect();
-                    const centerX = rect.left + rect.width / 2;
-                    const centerY = rect.top + rect.height / 2;
-                    
-                    const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
-                    const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
-                    
-                    rotateStartAngle = Math.atan2(clientY - centerY, clientX - centerX);
-                    
-                    const transform = collageImage.style.transform;
-                    const match = transform.match(/rotate\((.+?)deg\)/);
-                    currentRotation = match ? parseFloat(match[1]) : 0;
-                    
-                } else if (!target.classList.contains('delete-btn')) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    selectImage(collageImage);
-                    isDragging = true;
-                    draggedElement = collageImage;
-                    draggedElement.classList.add('dragging');
-                    
-                    const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
-                    const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
-                    
-                    startX = clientX;
-                    startY = clientY;
-                    startLeft = parseInt(collageImage.style.left);
-                    startTop = parseInt(collageImage.style.top);
-                }
-            }
-        }
-
-        function handleMove(e) {
-            if (!draggedElement) return;
+            const touchX = e.changedTouches[0].clientX;
+            const touchY = e.changedTouches[0].clientY;
+            const element = document.elementFromPoint(touchX, touchY);
+            const dropTarget = element?.closest('.grid-item');
             
-            if (e.type === 'touchmove' && e.touches.length === 2 && draggedElement && selectedElement) {
-                e.preventDefault();
-                e.stopPropagation();
+            if (dropTarget && dropTarget !== draggedItem) {
+                const dropIndex = parseInt(dropTarget.dataset.index);
                 
-                if (!isScaling) {
-                    isScaling = true;
-                    isDragging = false;
-                    isRotating = false;
-                    isCanvasScaling = false;
-                    isCanvasDragging = false;
-                    
-                    const touch1 = e.touches[0];
-                    const touch2 = e.touches[1];
-                    touchStartDistance = Math.hypot(
-                        touch2.clientX - touch1.clientX,
-                        touch2.clientY - touch1.clientY
-                    );
-                    initialWidth = parseInt(draggedElement.style.width);
-                }
-                
-                const touch1 = e.touches[0];
-                const touch2 = e.touches[1];
-                const currentDistance = Math.hypot(
-                    touch2.clientX - touch1.clientX,
-                    touch2.clientY - touch1.clientY
-                );
-                const newWidth = Math.max(50, initialWidth * (currentDistance / touchStartDistance));
-                draggedElement.style.width = newWidth + 'px';
-                draggedElement.style.height = newWidth + 'px';
-                return;
-            }
-            
-            if (e.touches && e.touches.length > 1) return;
-            
-            const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
-            const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
-            
-            if (isRotating) {
-                e.preventDefault();
-                const rect = draggedElement.getBoundingClientRect();
-                const centerX = rect.left + rect.width / 2;
-                const centerY = rect.top + rect.height / 2;
-                const angle = Math.atan2(clientY - centerY, clientX - centerX);
-                const rotation = currentRotation + (angle - rotateStartAngle) * (180 / Math.PI);
-                draggedElement.style.transform = `rotate(${rotation}deg)`;
-                
-            } else if (isDragging) {
-                e.preventDefault();
-                const deltaX = clientX - startX;
-                const deltaY = clientY - startY;
-                const newLeft = startLeft + deltaX;
-                const newTop = startTop + deltaY;
-                
-                draggedElement.style.left = newLeft + 'px';
-                draggedElement.style.top = newTop + 'px';
-            }
-        }
-
-        function handleEnd(e) {
-            if (draggedElement) {
-                const id = draggedElement.dataset.id;
-                const img = collages[currentCollageId].images.find(i => i.id === id);
-                
-                if (img) {
-                    img.x = parseInt(draggedElement.style.left);
-                    img.y = parseInt(draggedElement.style.top);
-                    img.width = parseInt(draggedElement.style.width);
-                    
-                    const transform = draggedElement.style.transform;
-                    const match = transform.match(/rotate\((.+?)deg\)/);
-                    if (match) {
-                        img.rotation = parseFloat(match[1]);
-                    }
-                    
+                if (draggedIndex !== dropIndex) {
+                    const images = boards[currentBoardId].images;
+                    const draggedImage = images[draggedIndex];
+                    images.splice(draggedIndex, 1);
+                    images.splice(dropIndex, 0, draggedImage);
                     saveToStorage();
+                    renderGrid();
                     renderHistory();
                 }
-                
-                draggedElement.classList.remove('dragging');
-                
-                if (e && (isRotating || isScaling || isDragging)) {
-                    const clientX = e.type === 'touchend' ? (e.changedTouches[0]?.clientX || startX) : e.clientX;
-                    const clientY = e.type === 'touchend' ? (e.changedTouches[0]?.clientY || startY) : e.clientY;
-                    
-                    const rect = draggedElement.getBoundingClientRect();
-                    const isOutside = clientX < rect.left || clientX > rect.right || 
-                                     clientY < rect.top || clientY > rect.bottom;
-                    
-                    if (isOutside) {
-                        deselectAll();
-                    }
-                }
-                
-                draggedElement = null;
-                isDragging = false;
-                isRotating = false;
-                isScaling = false;
             }
+            
+            document.querySelectorAll('.grid-item').forEach(item => {
+                item.classList.remove('dragging');
+                item.classList.remove('drag-over');
+            });
+            draggedItem = null;
+            draggedIndex = -1;
         }
 
-        function removeImage(imageId) {
-            if (currentCollageId && collages[currentCollageId]) {
-                collages[currentCollageId].images = collages[currentCollageId].images.filter(i => i.id !== imageId);
-                renderCollage();
+        function removeImage(index) {
+            if (currentBoardId && boards[currentBoardId]) {
+                boards[currentBoardId].images.splice(index, 1);
+                renderGrid();
                 saveToStorage();
                 renderHistory();
             }
@@ -1144,7 +787,7 @@
                 id: 'row_' + Date.now(),
                 ageFrom: 1,
                 ageTo: 10,
-                collageId: null
+                boardId: null
             };
             historyRows.push(row);
             saveToStorage();
@@ -1204,46 +847,31 @@
                 const imageCol = document.createElement('div');
                 imageCol.className = 'history-col-images';
                 
-                const collageWrapper = document.createElement('div');
-                collageWrapper.className = 'history-collage-wrapper';
-                collageWrapper.onclick = function() {
-                    openCollageSelection(index);
+                const gridDiv = document.createElement('div');
+                gridDiv.className = 'grid-container history-grid';
+                gridDiv.onclick = function() {
+                    openBoardSelection(index);
                 };
-                
-                const collageDiv = document.createElement('div');
-                collageDiv.className = 'history-collage';
 
-                if (row.collageId && collages[row.collageId]) {
-                    const collage = collages[row.collageId];
-                    collage.images.forEach((img, imgIndex) => {
-                        const imgDiv = document.createElement('div');
-                        imgDiv.style.position = 'absolute';
-                        imgDiv.style.left = (img.x / 3) + 'px';
-                        imgDiv.style.top = (img.y / 2) + 'px';
-                        imgDiv.style.width = (img.width / 2) + 'px';
-                        imgDiv.style.height = (img.width / 2) + 'px';
-                        imgDiv.style.transform = `rotate(${img.rotation}deg)`;
-                        imgDiv.style.zIndex = imgIndex;
-                        imgDiv.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.5)';
-
-                        const imgEl = document.createElement('img');
-                        imgEl.src = img.src;
-                        imgEl.style.width = '100%';
-                        imgEl.style.height = '100%';
-                        imgEl.style.objectFit = 'cover';
-                        imgEl.style.pointerEvents = 'none';
-                        imgDiv.appendChild(imgEl);
-                        collageDiv.appendChild(imgDiv);
+                if (row.boardId && boards[row.boardId]) {
+                    const board = boards[row.boardId];
+                    board.images.forEach((imageSrc, imgIndex) => {
+                        const item = createGridItem(imageSrc, imgIndex, false);
+                        gridDiv.appendChild(item);
                     });
                 } else {
                     const placeholder = document.createElement('div');
-                    placeholder.className = 'history-collage-placeholder';
-                    placeholder.textContent = 'Tap to select collage';
-                    collageDiv.appendChild(placeholder);
+                    placeholder.style.gridColumn = '1 / -1';
+                    placeholder.style.display = 'flex';
+                    placeholder.style.alignItems = 'center';
+                    placeholder.style.justifyContent = 'center';
+                    placeholder.style.color = '#666';
+                    placeholder.style.fontSize = '14px';
+                    placeholder.textContent = 'Tap to select board';
+                    gridDiv.appendChild(placeholder);
                 }
 
-                collageWrapper.appendChild(collageDiv);
-                imageCol.appendChild(collageWrapper);
+                imageCol.appendChild(gridDiv);
 
                 const deleteBtn = document.createElement('button');
                 deleteBtn.textContent = 'Delete Row';
@@ -1267,53 +895,53 @@
             }
         }
 
-        function openCollageSelection(rowIndex) {
+        function openBoardSelection(rowIndex) {
             currentEditingRowIndex = rowIndex;
-            updateCollageSelect();
+            updateBoardSelect();
             
             const row = historyRows[rowIndex];
-            if (row.collageId) {
-                document.getElementById('historyCollageSelect').value = row.collageId;
+            if (row.boardId) {
+                document.getElementById('historyBoardSelect').value = row.boardId;
             }
             
-            document.getElementById('selectCollageModal').classList.add('active');
+            document.getElementById('selectBoardModal').classList.add('active');
         }
 
-        function closeSelectCollageModal() {
-            document.getElementById('selectCollageModal').classList.remove('active');
-            document.getElementById('newHistoryCollageName').value = '';
+        function closeSelectBoardModal() {
+            document.getElementById('selectBoardModal').classList.remove('active');
+            document.getElementById('newHistoryBoardName').value = '';
             currentEditingRowIndex = null;
         }
 
-        function confirmCollageSelection() {
+        function confirmBoardSelection() {
             if (currentEditingRowIndex === null) return;
 
-            const selectValue = document.getElementById('historyCollageSelect').value;
-            const newName = document.getElementById('newHistoryCollageName').value.trim();
+            const selectValue = document.getElementById('historyBoardSelect').value;
+            const newName = document.getElementById('newHistoryBoardName').value.trim();
 
             if (selectValue) {
-                historyRows[currentEditingRowIndex].collageId = selectValue;
+                historyRows[currentEditingRowIndex].boardId = selectValue;
                 saveToStorage();
                 renderHistory();
-                closeSelectCollageModal();
+                closeSelectBoardModal();
             } else if (newName) {
-                const id = 'collage_' + Date.now();
-                collages[id] = {
+                const id = 'board_' + Date.now();
+                boards[id] = {
                     name: newName,
                     images: []
                 };
-                historyRows[currentEditingRowIndex].collageId = id;
-                updateCollageSelect();
+                historyRows[currentEditingRowIndex].boardId = id;
+                updateBoardSelect();
                 saveToStorage();
                 renderHistory();
-                closeSelectCollageModal();
+                closeSelectBoardModal();
                 
-                currentCollageId = id;
-                document.getElementById('collageSelect').value = id;
-                document.getElementById('collageName').value = newName;
+                currentBoardId = id;
+                document.getElementById('boardSelect').value = id;
+                document.getElementById('boardName').value = newName;
                 navigateTo('vision');
             } else {
-                alert('Please select a collage or enter a name for a new one');
+                alert('Please select a board or enter a name for a new one');
             }
         }
 
