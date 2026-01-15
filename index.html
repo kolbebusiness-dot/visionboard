@@ -210,6 +210,7 @@
             touch-action: none;
             left: 0;
             top: 0;
+            transform-origin: center center;
         }
 
         .fullscreen-btn {
@@ -375,8 +376,6 @@
             border-radius: 5px;
             position: relative;
             overflow: hidden;
-            cursor: pointer;
-            pointer-events: none;
         }
 
         .history-collage:hover, .history-collage:active {
@@ -384,8 +383,11 @@
         }
         
         .history-collage-wrapper {
-            pointer-events: auto;
             cursor: pointer;
+        }
+        
+        .history-collage-wrapper .collage-image {
+            pointer-events: none;
         }
 
         .history-collage-placeholder {
@@ -559,11 +561,12 @@
         let currentEditingRowIndex = null;
         let canvasX = 0;
         let canvasY = 0;
-        let canvasScale = 1;
+        let canvasScale = 0.5;
         let isFullscreen = false;
         let touchStartDistance = 0;
         let initialScale = 1;
         let initialWidth = 0;
+        let scrollPosition = 0;
 
         function init() {
             loadFromStorage();
@@ -595,7 +598,7 @@
             if (collages[currentCollageId].canvasX !== undefined) {
                 canvasX = collages[currentCollageId].canvasX;
                 canvasY = collages[currentCollageId].canvasY;
-                canvasScale = collages[currentCollageId].canvasScale || 1;
+                canvasScale = collages[currentCollageId].canvasScale || 0.5;
             }
             
             loadCollage();
@@ -667,6 +670,7 @@
             if (isFullscreen) {
                 exitFullscreen();
             } else {
+                scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
                 const wrapper = document.getElementById('collageWrapper');
                 wrapper.classList.add('fullscreen-mode');
                 document.getElementById('fullscreenBtn').innerHTML = '×';
@@ -679,6 +683,10 @@
             wrapper.classList.remove('fullscreen-mode');
             document.getElementById('fullscreenBtn').innerHTML = '⛶';
             isFullscreen = false;
+            
+            setTimeout(function() {
+                window.scrollTo(0, scrollPosition);
+            }, 10);
         }
 
         function deselectAll() {
@@ -721,11 +729,11 @@
                 if (collages[currentCollageId].canvasX !== undefined) {
                     canvasX = collages[currentCollageId].canvasX;
                     canvasY = collages[currentCollageId].canvasY;
-                    canvasScale = collages[currentCollageId].canvasScale || 1;
+                    canvasScale = collages[currentCollageId].canvasScale || 0.5;
                 } else {
                     canvasX = 0;
                     canvasY = 0;
-                    canvasScale = 1;
+                    canvasScale = 0.5;
                 }
                 
                 const canvas = document.getElementById('collageCanvas');
@@ -858,7 +866,7 @@
             const canvas = document.getElementById('collageCanvas');
 
             container.addEventListener('touchstart', function(e) {
-                if (e.touches.length === 2) {
+                if (e.touches.length === 2 && !e.target.closest('.collage-image')) {
                     e.preventDefault();
                     isCanvasScaling = true;
                     const touch1 = e.touches[0];
@@ -888,7 +896,7 @@
                         touch2.clientX - touch1.clientX,
                         touch2.clientY - touch1.clientY
                     );
-                    canvasScale = Math.max(0.5, Math.min(3, initialScale * (currentDistance / touchStartDistance)));
+                    canvasScale = Math.max(0.3, Math.min(3, initialScale * (currentDistance / touchStartDistance)));
                     canvas.style.transform = `translate(${canvasX}px, ${canvasY}px) scale(${canvasScale})`;
                     
                     if (currentCollageId) {
@@ -1024,10 +1032,15 @@
             
             if (e.type === 'touchmove' && e.touches.length === 2 && draggedElement && selectedElement) {
                 e.preventDefault();
+                e.stopPropagation();
+                
                 if (!isScaling) {
                     isScaling = true;
                     isDragging = false;
                     isRotating = false;
+                    isCanvasScaling = false;
+                    isCanvasDragging = false;
+                    
                     const touch1 = e.touches[0];
                     const touch2 = e.touches[1];
                     touchStartDistance = Math.hypot(
@@ -1193,12 +1206,12 @@
                 
                 const collageWrapper = document.createElement('div');
                 collageWrapper.className = 'history-collage-wrapper';
+                collageWrapper.onclick = function() {
+                    openCollageSelection(index);
+                };
                 
                 const collageDiv = document.createElement('div');
                 collageDiv.className = 'history-collage';
-                collageDiv.onclick = function() {
-                    openCollageSelection(index);
-                };
 
                 if (row.collageId && collages[row.collageId]) {
                     const collage = collages[row.collageId];
