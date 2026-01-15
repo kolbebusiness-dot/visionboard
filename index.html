@@ -237,12 +237,20 @@
             background: rgba(226, 74, 74, 0.9);
             border-radius: 50%;
             cursor: pointer;
-            display: flex;
+            display: none;
             align-items: center;
             justify-content: center;
             font-size: 18px;
             line-height: 1;
             z-index: 10;
+        }
+
+        .grid-item.selected .delete-btn {
+            display: flex;
+        }
+
+        .grid-item.selected {
+            border-color: #4a90e2;
         }
 
         .history-container {
@@ -256,8 +264,28 @@
             margin-bottom: 20px;
             background: rgba(30, 30, 30, 0.8);
             padding: 15px;
+            padding-top: 40px;
             border-radius: 10px;
             width: 100%;
+            position: relative;
+        }
+
+        .history-row-delete {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 30px;
+            height: 30px;
+            background: rgba(226, 74, 74, 0.9);
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            line-height: 1;
+            border: none;
+            padding: 0;
         }
 
         .history-col-age {
@@ -351,8 +379,51 @@
         }
 
         .row-delete-btn {
-            margin-top: 10px;
+            display: none;
+        }
+
+        .fullscreen-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 500;
+            background: #000;
+            display: none;
+        }
+
+        .fullscreen-overlay.active {
+            display: block;
+        }
+
+        .fullscreen-grid {
             width: 100%;
+            height: 100vh;
+            padding: 60px 10px 10px 10px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            overflow-y: auto;
+        }
+
+        .fullscreen-close {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            width: 40px;
+            height: 40px;
+            background: rgba(226, 74, 74, 0.9);
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            line-height: 1;
+            z-index: 510;
         }
     </style>
 </head>
@@ -406,6 +477,11 @@
         </div>
     </div>
 
+    <div class="fullscreen-overlay" id="fullscreenOverlay">
+        <div class="fullscreen-close" onclick="closeFullscreenVision()">×</div>
+        <div class="fullscreen-grid" id="fullscreenGrid"></div>
+    </div>
+
     <div class="modal" id="selectBoardModal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeSelectBoardModal()">&times;</span>
@@ -432,6 +508,9 @@
         let draggedItem = null;
         let draggedIndex = -1;
         let currentEditingRowIndex = null;
+        let longPressTimer = null;
+        let canDrag = false;
+        let selectedImageIndex = -1;
 
         function init() {
             loadFromStorage();
@@ -461,6 +540,7 @@
             document.getElementById('boardName').value = 'Visionboard';
             
             loadBoard();
+            showFullscreenVision();
         }
 
         function loadFromStorage() {
@@ -589,14 +669,19 @@
             }
 
             const files = event.target.files;
+            let loadedCount = 0;
 
-            Array.from(files).forEach((file, index) => {
+            Array.from(files).forEach((file) => {
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     boards[currentBoardId].images.push(e.target.result);
-                    renderGrid();
-                    saveToStorage();
-                    renderHistory();
+                    loadedCount++;
+                    
+                    if (loadedCount === files.length) {
+                        renderGrid();
+                        saveToStorage();
+                        renderHistory();
+                    }
                 };
                 reader.readAsDataURL(file);
             });
@@ -614,6 +699,31 @@
                     grid.appendChild(item);
                 });
             }
+            
+            selectedImageIndex = -1;
+        }
+
+        function showFullscreenVision() {
+            const overlay = document.getElementById('fullscreenOverlay');
+            const grid = document.getElementById('fullscreenGrid');
+            grid.innerHTML = '';
+            
+            if (currentBoardId && boards[currentBoardId]) {
+                boards[currentBoardId].images.forEach((imageSrc, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'grid-item';
+                    const img = document.createElement('img');
+                    img.src = imageSrc;
+                    item.appendChild(img);
+                    grid.appendChild(item);
+                });
+            }
+            
+            overlay.classList.add('active');
+        }
+
+        function closeFullscreenVision() {
+            document.getElementById('fullscreenOverlay').classList.remove('active');
         }
 
         function createGridItem(imageSrc, index, draggable) {
@@ -631,16 +741,23 @@
                 deleteBtn.innerHTML = '×';
                 deleteBtn.onclick = function(e) {
                     e.stopPropagation();
+                    e.preventDefault();
                     removeImage(index);
                 };
                 item.appendChild(deleteBtn);
 
-                item.draggable = true;
-                
-                item.addEventListener('dragstart', handleDragStart);
-                item.addEventListener('dragover', handleDragOver);
-                item.addEventListener('drop', handleDrop);
-                item.addEventListener('dragend', handleDragEnd);
+                item.onclick = function(e) {
+                    if (e.target === deleteBtn) return;
+                    
+                    document.querySelectorAll('.grid-item').forEach(i => i.classList.remove('selected'));
+                    
+                    if (selectedImageIndex === index) {
+                        selectedImageIndex = -1;
+                    } else {
+                        this.classList.add('selected');
+                        selectedImageIndex = index;
+                    }
+                };
                 
                 item.addEventListener('touchstart', handleTouchStart, { passive: false });
                 item.addEventListener('touchmove', handleTouchMove, { passive: false });
@@ -701,28 +818,43 @@
         let touchMoved = false;
 
         function handleTouchStart(e) {
-            draggedItem = this;
-            draggedIndex = parseInt(this.dataset.index);
+            const target = e.target;
+            if (target.classList.contains('delete-btn') || target.closest('.delete-btn')) {
+                return;
+            }
+            
             touchStartX = e.touches[0].clientX;
             touchStartY = e.touches[0].clientY;
             touchMoved = false;
+            canDrag = false;
             
-            setTimeout(() => {
-                if (!touchMoved && draggedItem === this) {
+            longPressTimer = setTimeout(() => {
+                if (!touchMoved) {
+                    canDrag = true;
+                    draggedItem = this;
+                    draggedIndex = parseInt(this.dataset.index);
                     this.classList.add('dragging');
+                    navigator.vibrate && navigator.vibrate(50);
                 }
-            }, 200);
+            }, 500);
         }
 
         function handleTouchMove(e) {
-            if (!draggedItem) return;
-            
             const touchX = e.touches[0].clientX;
             const touchY = e.touches[0].clientY;
             
             if (Math.abs(touchX - touchStartX) > 10 || Math.abs(touchY - touchStartY) > 10) {
                 touchMoved = true;
+                
+                if (!canDrag) {
+                    clearTimeout(longPressTimer);
+                    return;
+                }
             }
+            
+            if (!canDrag || !draggedItem) return;
+            
+            e.preventDefault();
             
             const element = document.elementFromPoint(touchX, touchY);
             const gridItem = element?.closest('.grid-item');
@@ -737,12 +869,15 @@
         }
 
         function handleTouchEnd(e) {
-            if (!draggedItem || !touchMoved) {
+            clearTimeout(longPressTimer);
+            
+            if (!canDrag || !draggedItem || !touchMoved) {
                 document.querySelectorAll('.grid-item').forEach(item => {
                     item.classList.remove('dragging');
                     item.classList.remove('drag-over');
                 });
                 draggedItem = null;
+                canDrag = false;
                 return;
             }
             
@@ -771,6 +906,7 @@
             });
             draggedItem = null;
             draggedIndex = -1;
+            canDrag = false;
         }
 
         function removeImage(index) {
@@ -873,17 +1009,19 @@
 
                 imageCol.appendChild(gridDiv);
 
-                const deleteBtn = document.createElement('button');
-                deleteBtn.textContent = 'Delete Row';
-                deleteBtn.className = 'delete row-delete-btn';
-                deleteBtn.onclick = function() {
-                    deleteHistoryRow(index);
-                };
-
                 rowDiv.appendChild(ageCol);
                 rowDiv.appendChild(imageCol);
+                
+                const deleteBtn = document.createElement('div');
+                deleteBtn.className = 'history-row-delete';
+                deleteBtn.innerHTML = '×';
+                deleteBtn.onclick = function(e) {
+                    e.stopPropagation();
+                    deleteHistoryRow(index);
+                };
+                rowDiv.appendChild(deleteBtn);
+                
                 container.appendChild(rowDiv);
-                container.appendChild(deleteBtn);
             });
         }
 
