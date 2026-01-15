@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -1048,12 +1048,11 @@
         function handleMove(e) {
             if (!draggedElement) return;
             
-            e.preventDefault();
-            
             const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
             const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
             
             if (isRotating) {
+                e.preventDefault();
                 const rect = draggedElement.getBoundingClientRect();
                 const centerX = rect.left + rect.width / 2;
                 const centerY = rect.top + rect.height / 2;
@@ -1062,6 +1061,7 @@
                 draggedElement.style.transform = `rotate(${rotation}deg)`;
                 
             } else if (isScaling) {
+                e.preventDefault();
                 const deltaX = clientX - startX;
                 const deltaY = clientY - startY;
                 const delta = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
@@ -1072,13 +1072,24 @@
                 draggedElement.style.height = newWidth + 'px';
                 
             } else if (isDragging) {
-                const deltaX = clientX - startX;
-                const deltaY = clientY - startY;
-                const newLeft = startLeft + deltaX;
-                const newTop = startTop + deltaY;
+                // Check if touch/mouse is still over the dragged element
+                const rect = draggedElement.getBoundingClientRect();
+                const isOverElement = clientX >= rect.left && clientX <= rect.right && 
+                                     clientY >= rect.top && clientY <= rect.bottom;
                 
-                draggedElement.style.left = newLeft + 'px';
-                draggedElement.style.top = newTop + 'px';
+                if (isOverElement) {
+                    e.preventDefault();
+                    const deltaX = clientX - startX;
+                    const deltaY = clientY - startY;
+                    const newLeft = startLeft + deltaX;
+                    const newTop = startTop + deltaY;
+                    
+                    draggedElement.style.left = newLeft + 'px';
+                    draggedElement.style.top = newTop + 'px';
+                } else {
+                    // Stop dragging if finger/mouse leaves the image
+                    handleEnd();
+                }
             }
         }
 
