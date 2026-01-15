@@ -208,17 +208,24 @@
             background: #000;
             border: 2px solid #333;
             border-radius: 10px;
-            overflow: auto;
-            touch-action: pan-x pan-y;
+            overflow: hidden;
+            touch-action: none;
+            cursor: grab;
+        }
+
+        .collage-container:active {
+            cursor: grabbing;
         }
 
         .collage-canvas {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            min-width: 100%;
-            min-height: 100%;
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            min-width: 200%;
+            min-height: 200%;
             touch-action: none;
+            left: 0;
+            top: 0;
         }
 
         .fullscreen-btn {
@@ -235,6 +242,23 @@
             cursor: pointer;
             z-index: 50;
             font-size: 20px;
+        }
+
+        .canvas-scale-btn {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            width: 45px;
+            height: 45px;
+            background: rgba(74, 144, 226, 0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 50;
+            font-size: 20px;
+            touch-action: none;
         }
 
         .fullscreen-mode {
@@ -528,10 +552,6 @@
                     <input type="text" id="collageName" placeholder="Enter collage name">
                 </div>
                 <div class="control-group">
-                    <label>Canvas Zoom: <span id="zoomValue">100%</span></label>
-                    <input type="range" id="zoomSlider" min="50" max="300" value="100" oninput="updateCanvasZoom(this.value)">
-                </div>
-                <div class="control-group">
                     <label>Add Images</label>
                     <input type="file" id="imageUpload" accept="image/*" multiple onchange="addImages(event)">
                 </div>
@@ -543,6 +563,7 @@
                 <div class="collage-container" id="collageContainer">
                     <div class="collage-canvas" id="collageCanvas"></div>
                 </div>
+                <div class="canvas-scale-btn" id="canvasScaleBtn">⇲</div>
                 <div class="fullscreen-btn" onclick="enterFullscreen()">⛶</div>
             </div>
         </div>
@@ -584,16 +605,21 @@
         let isDragging = false;
         let isRotating = false;
         let isScaling = false;
+        let isCanvasDragging = false;
+        let isCanvasScaling = false;
         let startX = 0;
         let startY = 0;
         let startLeft = 0;
         let startTop = 0;
         let startWidth = 0;
+        let startHeight = 0;
         let startDistance = 0;
         let rotateStartAngle = 0;
         let currentRotation = 0;
         let currentEditingRowIndex = null;
-        let canvasZoom = 100;
+        let canvasX = 0;
+        let canvasY = 0;
+        let canvasScale = 1;
 
         function init() {
             loadFromStorage();
@@ -609,6 +635,7 @@
             }
 
             setupTouchHandlers();
+            setupCanvasHandlers();
             
             document.addEventListener('click', function(e) {
                 if (!e.target.closest('.collage-image')) {
@@ -677,6 +704,93 @@
             const canvas = document.getElementById('collageCanvas');
             canvas.style.width = canvasZoom + '%';
             canvas.style.height = canvasZoom + '%';
+        }
+
+        function setupCanvasHandlers() {
+            const container = document.getElementById('collageContainer');
+            const canvas = document.getElementById('collageCanvas');
+            const scaleBtn = document.getElementById('canvasScaleBtn');
+
+            container.addEventListener('mousedown', function(e) {
+                if (e.target === container && !e.target.closest('.collage-image')) {
+                    isCanvasDragging = true;
+                    startX = e.clientX;
+                    startY = e.clientY;
+                    startLeft = canvasX;
+                    startTop = canvasY;
+                    container.style.cursor = 'grabbing';
+                }
+            });
+
+            container.addEventListener('touchstart', function(e) {
+                if (e.target === container && !e.target.closest('.collage-image')) {
+                    isCanvasDragging = true;
+                    startX = e.touches[0].clientX;
+                    startY = e.touches[0].clientY;
+                    startLeft = canvasX;
+                    startTop = canvasY;
+                }
+            }, { passive: false });
+
+            scaleBtn.addEventListener('mousedown', function(e) {
+                e.stopPropagation();
+                isCanvasScaling = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                startWidth = canvasScale;
+            });
+
+            scaleBtn.addEventListener('touchstart', function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                isCanvasScaling = true;
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+                startWidth = canvasScale;
+            }, { passive: false });
+
+            document.addEventListener('mousemove', function(e) {
+                if (isCanvasDragging) {
+                    const deltaX = e.clientX - startX;
+                    const deltaY = e.clientY - startY;
+                    canvasX = startLeft + deltaX;
+                    canvasY = startTop + deltaY;
+                    canvas.style.transform = `translate(${canvasX}px, ${canvasY}px) scale(${canvasScale})`;
+                } else if (isCanvasScaling) {
+                    const deltaX = e.clientX - startX;
+                    const deltaY = e.clientY - startY;
+                    const delta = (deltaX + deltaY) / 100;
+                    canvasScale = Math.max(0.5, Math.min(3, startWidth + delta));
+                    canvas.style.transform = `translate(${canvasX}px, ${canvasY}px) scale(${canvasScale})`;
+                }
+            });
+
+            document.addEventListener('touchmove', function(e) {
+                if (isCanvasDragging) {
+                    const deltaX = e.touches[0].clientX - startX;
+                    const deltaY = e.touches[0].clientY - startY;
+                    canvasX = startLeft + deltaX;
+                    canvasY = startTop + deltaY;
+                    canvas.style.transform = `translate(${canvasX}px, ${canvasY}px) scale(${canvasScale})`;
+                } else if (isCanvasScaling) {
+                    const deltaX = e.touches[0].clientX - startX;
+                    const deltaY = e.touches[0].clientY - startY;
+                    const delta = (deltaX + deltaY) / 100;
+                    canvasScale = Math.max(0.5, Math.min(3, startWidth + delta));
+                    canvas.style.transform = `translate(${canvasX}px, ${canvasY}px) scale(${canvasScale})`;
+                }
+            }, { passive: false });
+
+            document.addEventListener('mouseup', function() {
+                isCanvasDragging = false;
+                isCanvasScaling = false;
+                container.style.cursor = 'grab';
+            });
+
+            document.addEventListener('touchend', function() {
+                isCanvasDragging = false;
+                isCanvasScaling = false;
+            });
         }
 
         function enterFullscreen() {
@@ -882,6 +996,7 @@
                 
                 if (target === rotateHandle || target.closest('.rotate-handle')) {
                     e.preventDefault();
+                    e.stopPropagation();
                     isRotating = true;
                     draggedElement = collageImage;
                     
@@ -900,6 +1015,7 @@
                     
                 } else if (target === scaleHandle || target.closest('.scale-handle')) {
                     e.preventDefault();
+                    e.stopPropagation();
                     isScaling = true;
                     draggedElement = collageImage;
                     
@@ -912,6 +1028,7 @@
                     
                 } else if (!target.classList.contains('delete-btn')) {
                     e.preventDefault();
+                    e.stopPropagation();
                     selectImage(collageImage);
                     isDragging = true;
                     draggedElement = collageImage;
