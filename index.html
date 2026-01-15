@@ -149,7 +149,7 @@
             color: #aaa;
         }
 
-        select, input[type="text"], input[type="number"], input[type="range"], button {
+        select, input[type="text"], input[type="number"], button {
             width: 100%;
             padding: 12px;
             background: rgba(50, 50, 50, 0.9);
@@ -158,22 +158,6 @@
             border-radius: 5px;
             font-size: 16px;
             margin-bottom: 10px;
-        }
-
-        input[type="range"] {
-            padding: 0;
-            height: 40px;
-        }
-
-        .zoom-control {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .zoom-control span {
-            min-width: 50px;
-            text-align: center;
         }
 
         button {
@@ -244,22 +228,8 @@
             font-size: 20px;
         }
 
-        .canvas-scale-btn {
-            position: absolute;
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 60px;
-            height: 35px;
-            background: rgba(74, 144, 226, 0.9);
-            border-radius: 8px 8px 0 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            z-index: 50;
-            font-size: 18px;
-            touch-action: none;
+        .fullscreen-mode .fullscreen-btn {
+            font-size: 24px;
         }
 
         .fullscreen-mode {
@@ -280,22 +250,6 @@
             height: 100vh;
             border: none;
             border-radius: 0;
-        }
-
-        .exit-fullscreen {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            width: 45px;
-            height: 45px;
-            background: rgba(226, 74, 74, 0.9);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            z-index: 50;
-            font-size: 24px;
         }
 
         .collage-image {
@@ -367,26 +321,6 @@
             display: flex;
         }
 
-        .collage-image .scale-handle {
-            position: absolute;
-            bottom: -15px;
-            right: -15px;
-            width: 35px;
-            height: 35px;
-            background: #4a90e2;
-            border-radius: 50%;
-            cursor: nwse-resize;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            touch-action: none;
-        }
-
-        .collage-image.selected .scale-handle {
-            display: flex;
-        }
-
         .history-container {
             padding: 15px;
             width: 100%;
@@ -442,10 +376,16 @@
             position: relative;
             overflow: hidden;
             cursor: pointer;
+            pointer-events: none;
         }
 
         .history-collage:hover, .history-collage:active {
             border-color: #4a90e2;
+        }
+        
+        .history-collage-wrapper {
+            pointer-events: auto;
+            cursor: pointer;
         }
 
         .history-collage-placeholder {
@@ -564,8 +504,7 @@
                 <div class="collage-container" id="collageContainer">
                     <div class="collage-canvas" id="collageCanvas"></div>
                 </div>
-                <div class="canvas-scale-btn" id="canvasScaleBtn">⇲</div>
-                <div class="fullscreen-btn" onclick="enterFullscreen()">⛶</div>
+                <div class="fullscreen-btn" id="fullscreenBtn" onclick="enterFullscreen()">⛶</div>
             </div>
         </div>
 
@@ -621,25 +560,49 @@
         let canvasX = 0;
         let canvasY = 0;
         let canvasScale = 1;
+        let isFullscreen = false;
+        let touchStartDistance = 0;
+        let initialScale = 1;
+        let initialWidth = 0;
 
         function init() {
             loadFromStorage();
             updateCollageSelect();
             renderHistory();
             
-            if (Object.keys(collages).length === 0) {
-                createNewCollage();
-            } else {
-                const firstId = Object.keys(collages)[0];
-                currentCollageId = firstId;
-                loadCollage();
+            let visionboardId = null;
+            for (let id in collages) {
+                if (collages[id].name === 'Visionboard') {
+                    visionboardId = id;
+                    break;
+                }
             }
-
+            
+            if (!visionboardId) {
+                visionboardId = 'collage_' + Date.now();
+                collages[visionboardId] = {
+                    name: 'Visionboard',
+                    images: []
+                };
+                saveToStorage();
+            }
+            
+            currentCollageId = visionboardId;
+            updateCollageSelect();
+            document.getElementById('collageSelect').value = visionboardId;
+            document.getElementById('collageName').value = 'Visionboard';
+            
+            if (collages[currentCollageId].canvasX !== undefined) {
+                canvasX = collages[currentCollageId].canvasX;
+                canvasY = collages[currentCollageId].canvasY;
+                canvasScale = collages[currentCollageId].canvasScale || 1;
+            }
+            
+            loadCollage();
             setupTouchHandlers();
             setupCanvasHandlers();
             
             document.addEventListener('click', function(e) {
-                // If clicking outside of any image and there's a selected element
                 if (!e.target.closest('.collage-image') && selectedElement) {
                     deselectAll();
                 }
@@ -651,7 +614,7 @@
             if (saved) {
                 const data = JSON.parse(saved);
                 collages = data.collages || {};
-                historyRows = data.historyRows || [];
+                historyRows = data.historyRows || {};
             }
         }
 
@@ -700,121 +663,22 @@
             });
         }
 
-        function updateCanvasZoom(value) {
-            canvasZoom = parseInt(value);
-            document.getElementById('zoomValue').textContent = canvasZoom + '%';
-            const canvas = document.getElementById('collageCanvas');
-            canvas.style.width = canvasZoom + '%';
-            canvas.style.height = canvasZoom + '%';
-        }
-
-        function setupCanvasHandlers() {
-            const container = document.getElementById('collageContainer');
-            const canvas = document.getElementById('collageCanvas');
-            const scaleBtn = document.getElementById('canvasScaleBtn');
-
-            container.addEventListener('mousedown', function(e) {
-                if (!e.target.closest('.collage-image') && 
-                    !e.target.closest('.canvas-scale-btn') && 
-                    !e.target.closest('.fullscreen-btn')) {
-                    isCanvasDragging = true;
-                    startX = e.clientX;
-                    startY = e.clientY;
-                    startLeft = canvasX;
-                    startTop = canvasY;
-                    container.style.cursor = 'grabbing';
-                }
-            });
-
-            container.addEventListener('touchstart', function(e) {
-                if (!e.target.closest('.collage-image') && 
-                    !e.target.closest('.canvas-scale-btn') && 
-                    !e.target.closest('.fullscreen-btn')) {
-                    isCanvasDragging = true;
-                    startX = e.touches[0].clientX;
-                    startY = e.touches[0].clientY;
-                    startLeft = canvasX;
-                    startTop = canvasY;
-                }
-            }, { passive: true });
-
-            scaleBtn.addEventListener('mousedown', function(e) {
-                e.stopPropagation();
-                isCanvasScaling = true;
-                startX = e.clientX;
-                startY = e.clientY;
-                startWidth = canvasScale;
-            });
-
-            scaleBtn.addEventListener('touchstart', function(e) {
-                e.stopPropagation();
-                e.preventDefault();
-                isCanvasScaling = true;
-                startX = e.touches[0].clientX;
-                startY = e.touches[0].clientY;
-                startWidth = canvasScale;
-            }, { passive: false });
-
-            document.addEventListener('mousemove', function(e) {
-                if (isCanvasDragging) {
-                    const deltaX = e.clientX - startX;
-                    const deltaY = e.clientY - startY;
-                    canvasX = startLeft + deltaX;
-                    canvasY = startTop + deltaY;
-                    canvas.style.transform = `translate(${canvasX}px, ${canvasY}px) scale(${canvasScale})`;
-                } else if (isCanvasScaling) {
-                    const deltaX = e.clientX - startX;
-                    const deltaY = e.clientY - startY;
-                    const delta = (deltaX + deltaY) / 100;
-                    canvasScale = Math.max(0.5, Math.min(3, startWidth + delta));
-                    canvas.style.transform = `translate(${canvasX}px, ${canvasY}px) scale(${canvasScale})`;
-                }
-            });
-
-            document.addEventListener('touchmove', function(e) {
-                if (isCanvasDragging) {
-                    const deltaX = e.touches[0].clientX - startX;
-                    const deltaY = e.touches[0].clientY - startY;
-                    canvasX = startLeft + deltaX;
-                    canvasY = startTop + deltaY;
-                    canvas.style.transform = `translate(${canvasX}px, ${canvasY}px) scale(${canvasScale})`;
-                } else if (isCanvasScaling) {
-                    const deltaX = e.touches[0].clientX - startX;
-                    const deltaY = e.touches[0].clientY - startY;
-                    const delta = (deltaX + deltaY) / 100;
-                    canvasScale = Math.max(0.5, Math.min(3, startWidth + delta));
-                    canvas.style.transform = `translate(${canvasX}px, ${canvasY}px) scale(${canvasScale})`;
-                }
-            }, { passive: true });
-
-            document.addEventListener('mouseup', function() {
-                isCanvasDragging = false;
-                isCanvasScaling = false;
-                container.style.cursor = 'grab';
-            });
-
-            document.addEventListener('touchend', function() {
-                isCanvasDragging = false;
-                isCanvasScaling = false;
-            });
-        }
-
         function enterFullscreen() {
-            const wrapper = document.getElementById('collageWrapper');
-            wrapper.classList.add('fullscreen-mode');
-            
-            const exitBtn = document.createElement('div');
-            exitBtn.className = 'exit-fullscreen';
-            exitBtn.innerHTML = '×';
-            exitBtn.onclick = exitFullscreen;
-            wrapper.appendChild(exitBtn);
+            if (isFullscreen) {
+                exitFullscreen();
+            } else {
+                const wrapper = document.getElementById('collageWrapper');
+                wrapper.classList.add('fullscreen-mode');
+                document.getElementById('fullscreenBtn').innerHTML = '×';
+                isFullscreen = true;
+            }
         }
 
         function exitFullscreen() {
             const wrapper = document.getElementById('collageWrapper');
             wrapper.classList.remove('fullscreen-mode');
-            const exitBtn = wrapper.querySelector('.exit-fullscreen');
-            if (exitBtn) exitBtn.remove();
+            document.getElementById('fullscreenBtn').innerHTML = '⛶';
+            isFullscreen = false;
         }
 
         function deselectAll() {
@@ -853,6 +717,20 @@
             if (selectValue && collages[selectValue]) {
                 currentCollageId = selectValue;
                 document.getElementById('collageName').value = collages[currentCollageId].name;
+                
+                if (collages[currentCollageId].canvasX !== undefined) {
+                    canvasX = collages[currentCollageId].canvasX;
+                    canvasY = collages[currentCollageId].canvasY;
+                    canvasScale = collages[currentCollageId].canvasScale || 1;
+                } else {
+                    canvasX = 0;
+                    canvasY = 0;
+                    canvasScale = 1;
+                }
+                
+                const canvas = document.getElementById('collageCanvas');
+                canvas.style.transform = `translate(${canvasX}px, ${canvasY}px) scale(${canvasScale})`;
+                
                 renderCollage();
             }
         }
@@ -866,6 +744,9 @@
             const name = document.getElementById('collageName').value.trim();
             if (name) {
                 collages[currentCollageId].name = name;
+                collages[currentCollageId].canvasX = canvasX;
+                collages[currentCollageId].canvasY = canvasY;
+                collages[currentCollageId].canvasScale = canvasScale;
                 updateCollageSelect();
                 document.getElementById('collageSelect').value = currentCollageId;
                 saveToStorage();
@@ -958,10 +839,6 @@
             rotateHandle.className = 'rotate-handle';
             rotateHandle.innerHTML = '↻';
             
-            const scaleHandle = document.createElement('div');
-            scaleHandle.className = 'scale-handle';
-            scaleHandle.innerHTML = '⇲';
-            
             const deleteBtn = document.createElement('div');
             deleteBtn.className = 'delete-btn';
             deleteBtn.innerHTML = '×';
@@ -972,9 +849,110 @@
 
             div.appendChild(img);
             div.appendChild(rotateHandle);
-            div.appendChild(scaleHandle);
             div.appendChild(deleteBtn);
             canvas.appendChild(div);
+        }
+
+        function setupCanvasHandlers() {
+            const container = document.getElementById('collageContainer');
+            const canvas = document.getElementById('collageCanvas');
+
+            container.addEventListener('touchstart', function(e) {
+                if (e.touches.length === 2) {
+                    e.preventDefault();
+                    isCanvasScaling = true;
+                    const touch1 = e.touches[0];
+                    const touch2 = e.touches[1];
+                    touchStartDistance = Math.hypot(
+                        touch2.clientX - touch1.clientX,
+                        touch2.clientY - touch1.clientY
+                    );
+                    initialScale = canvasScale;
+                } else if (e.touches.length === 1 && 
+                          !e.target.closest('.collage-image') && 
+                          !e.target.closest('.fullscreen-btn')) {
+                    isCanvasDragging = true;
+                    startX = e.touches[0].clientX;
+                    startY = e.touches[0].clientY;
+                    startLeft = canvasX;
+                    startTop = canvasY;
+                }
+            }, { passive: false });
+
+            container.addEventListener('touchmove', function(e) {
+                if (e.touches.length === 2 && isCanvasScaling) {
+                    e.preventDefault();
+                    const touch1 = e.touches[0];
+                    const touch2 = e.touches[1];
+                    const currentDistance = Math.hypot(
+                        touch2.clientX - touch1.clientX,
+                        touch2.clientY - touch1.clientY
+                    );
+                    canvasScale = Math.max(0.5, Math.min(3, initialScale * (currentDistance / touchStartDistance)));
+                    canvas.style.transform = `translate(${canvasX}px, ${canvasY}px) scale(${canvasScale})`;
+                    
+                    if (currentCollageId) {
+                        collages[currentCollageId].canvasScale = canvasScale;
+                        saveToStorage();
+                    }
+                } else if (e.touches.length === 1 && isCanvasDragging) {
+                    const deltaX = e.touches[0].clientX - startX;
+                    const deltaY = e.touches[0].clientY - startY;
+                    canvasX = startLeft + deltaX;
+                    canvasY = startTop + deltaY;
+                    canvas.style.transform = `translate(${canvasX}px, ${canvasY}px) scale(${canvasScale})`;
+                }
+            }, { passive: false });
+
+            container.addEventListener('touchend', function(e) {
+                if (e.touches.length < 2) {
+                    isCanvasScaling = false;
+                }
+                if (e.touches.length === 0) {
+                    isCanvasDragging = false;
+                    
+                    if (currentCollageId) {
+                        collages[currentCollageId].canvasX = canvasX;
+                        collages[currentCollageId].canvasY = canvasY;
+                        saveToStorage();
+                    }
+                }
+            });
+
+            container.addEventListener('mousedown', function(e) {
+                if (!e.target.closest('.collage-image') && 
+                    !e.target.closest('.fullscreen-btn')) {
+                    isCanvasDragging = true;
+                    startX = e.clientX;
+                    startY = e.clientY;
+                    startLeft = canvasX;
+                    startTop = canvasY;
+                    container.style.cursor = 'grabbing';
+                }
+            });
+
+            document.addEventListener('mousemove', function(e) {
+                if (isCanvasDragging) {
+                    const deltaX = e.clientX - startX;
+                    const deltaY = e.clientY - startY;
+                    canvasX = startLeft + deltaX;
+                    canvasY = startTop + deltaY;
+                    canvas.style.transform = `translate(${canvasX}px, ${canvasY}px) scale(${canvasScale})`;
+                }
+            });
+
+            document.addEventListener('mouseup', function() {
+                if (isCanvasDragging) {
+                    isCanvasDragging = false;
+                    container.style.cursor = 'grab';
+                    
+                    if (currentCollageId) {
+                        collages[currentCollageId].canvasX = canvasX;
+                        collages[currentCollageId].canvasY = canvasY;
+                        saveToStorage();
+                    }
+                }
+            });
         }
 
         function setupTouchHandlers() {
@@ -991,6 +969,10 @@
         function handleStart(e) {
             const target = e.target;
             
+            if (e.type === 'touchstart' && e.touches.length > 1) {
+                return;
+            }
+            
             if (target.classList.contains('collage-image') || 
                 target.closest('.collage-image')) {
                 
@@ -998,7 +980,6 @@
                     target : target.closest('.collage-image');
                 
                 const rotateHandle = collageImage.querySelector('.rotate-handle');
-                const scaleHandle = collageImage.querySelector('.scale-handle');
                 
                 if (target === rotateHandle || target.closest('.rotate-handle')) {
                     e.preventDefault();
@@ -1018,19 +999,6 @@
                     const transform = collageImage.style.transform;
                     const match = transform.match(/rotate\((.+?)deg\)/);
                     currentRotation = match ? parseFloat(match[1]) : 0;
-                    
-                } else if (target === scaleHandle || target.closest('.scale-handle')) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    isScaling = true;
-                    draggedElement = collageImage;
-                    
-                    const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
-                    const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
-                    
-                    startX = clientX;
-                    startY = clientY;
-                    startWidth = parseInt(collageImage.style.width);
                     
                 } else if (!target.classList.contains('delete-btn')) {
                     e.preventDefault();
@@ -1054,6 +1022,35 @@
         function handleMove(e) {
             if (!draggedElement) return;
             
+            if (e.type === 'touchmove' && e.touches.length === 2 && draggedElement && selectedElement) {
+                e.preventDefault();
+                if (!isScaling) {
+                    isScaling = true;
+                    isDragging = false;
+                    isRotating = false;
+                    const touch1 = e.touches[0];
+                    const touch2 = e.touches[1];
+                    touchStartDistance = Math.hypot(
+                        touch2.clientX - touch1.clientX,
+                        touch2.clientY - touch1.clientY
+                    );
+                    initialWidth = parseInt(draggedElement.style.width);
+                }
+                
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                const currentDistance = Math.hypot(
+                    touch2.clientX - touch1.clientX,
+                    touch2.clientY - touch1.clientY
+                );
+                const newWidth = Math.max(50, initialWidth * (currentDistance / touchStartDistance));
+                draggedElement.style.width = newWidth + 'px';
+                draggedElement.style.height = newWidth + 'px';
+                return;
+            }
+            
+            if (e.touches && e.touches.length > 1) return;
+            
             const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
             const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
             
@@ -1065,17 +1062,6 @@
                 const angle = Math.atan2(clientY - centerY, clientX - centerX);
                 const rotation = currentRotation + (angle - rotateStartAngle) * (180 / Math.PI);
                 draggedElement.style.transform = `rotate(${rotation}deg)`;
-                
-            } else if (isScaling) {
-                e.preventDefault();
-                const deltaX = clientX - startX;
-                const deltaY = clientY - startY;
-                const delta = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-                const direction = deltaX + deltaY > 0 ? 1 : -1;
-                const newWidth = Math.max(50, startWidth + (delta * direction));
-                
-                draggedElement.style.width = newWidth + 'px';
-                draggedElement.style.height = newWidth + 'px';
                 
             } else if (isDragging) {
                 e.preventDefault();
@@ -1111,7 +1097,6 @@
                 
                 draggedElement.classList.remove('dragging');
                 
-                // Check if the touch/click ended outside the image
                 if (e && (isRotating || isScaling || isDragging)) {
                     const clientX = e.type === 'touchend' ? (e.changedTouches[0]?.clientX || startX) : e.clientX;
                     const clientY = e.type === 'touchend' ? (e.changedTouches[0]?.clientY || startY) : e.clientY;
@@ -1205,6 +1190,10 @@
 
                 const imageCol = document.createElement('div');
                 imageCol.className = 'history-col-images';
+                
+                const collageWrapper = document.createElement('div');
+                collageWrapper.className = 'history-collage-wrapper';
+                
                 const collageDiv = document.createElement('div');
                 collageDiv.className = 'history-collage';
                 collageDiv.onclick = function() {
@@ -1215,7 +1204,6 @@
                     const collage = collages[row.collageId];
                     collage.images.forEach((img, imgIndex) => {
                         const imgDiv = document.createElement('div');
-                        imgDiv.className = 'collage-image';
                         imgDiv.style.position = 'absolute';
                         imgDiv.style.left = (img.x / 3) + 'px';
                         imgDiv.style.top = (img.y / 2) + 'px';
@@ -1223,9 +1211,14 @@
                         imgDiv.style.height = (img.width / 2) + 'px';
                         imgDiv.style.transform = `rotate(${img.rotation}deg)`;
                         imgDiv.style.zIndex = imgIndex;
+                        imgDiv.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.5)';
 
                         const imgEl = document.createElement('img');
                         imgEl.src = img.src;
+                        imgEl.style.width = '100%';
+                        imgEl.style.height = '100%';
+                        imgEl.style.objectFit = 'cover';
+                        imgEl.style.pointerEvents = 'none';
                         imgDiv.appendChild(imgEl);
                         collageDiv.appendChild(imgDiv);
                     });
@@ -1236,7 +1229,8 @@
                     collageDiv.appendChild(placeholder);
                 }
 
-                imageCol.appendChild(collageDiv);
+                collageWrapper.appendChild(collageDiv);
+                imageCol.appendChild(collageWrapper);
 
                 const deleteBtn = document.createElement('button');
                 deleteBtn.textContent = 'Delete Row';
