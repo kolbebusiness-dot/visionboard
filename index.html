@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -149,7 +149,7 @@
             color: #aaa;
         }
 
-        select, input[type="text"], input[type="number"], button {
+        select, input[type="text"], input[type="number"], input[type="range"], button {
             width: 100%;
             padding: 12px;
             background: rgba(50, 50, 50, 0.9);
@@ -158,6 +158,22 @@
             border-radius: 5px;
             font-size: 16px;
             margin-bottom: 10px;
+        }
+
+        input[type="range"] {
+            padding: 0;
+            height: 40px;
+        }
+
+        .zoom-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .zoom-control span {
+            min-width: 50px;
+            text-align: center;
         }
 
         button {
@@ -179,16 +195,82 @@
             background: #f25a5a;
         }
 
-        .collage-container {
+        .collage-wrapper {
             position: relative;
             width: calc(100% - 30px);
-            height: 60vh;
             margin: 15px;
+        }
+
+        .collage-container {
+            position: relative;
+            width: 100%;
+            height: 60vh;
             background: #000;
             border: 2px solid #333;
             border-radius: 10px;
-            overflow: hidden;
+            overflow: auto;
+            touch-action: pan-x pan-y;
+        }
+
+        .collage-canvas {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            min-width: 100%;
+            min-height: 100%;
             touch-action: none;
+        }
+
+        .fullscreen-btn {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            width: 45px;
+            height: 45px;
+            background: rgba(74, 144, 226, 0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 50;
+            font-size: 20px;
+        }
+
+        .fullscreen-mode {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 500;
+            background: #000;
+            margin: 0;
+            border-radius: 0;
+        }
+
+        .fullscreen-mode .collage-container {
+            height: 100vh;
+            border: none;
+            border-radius: 0;
+        }
+
+        .exit-fullscreen {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 45px;
+            height: 45px;
+            background: rgba(226, 74, 74, 0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 50;
+            font-size: 24px;
         }
 
         .collage-image {
@@ -197,6 +279,10 @@
             box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
             transition: box-shadow 0.2s;
             touch-action: none;
+        }
+
+        .collage-image.selected {
+            box-shadow: 0 0 0 3px #4a90e2;
         }
 
         .collage-image.dragging {
@@ -221,11 +307,15 @@
             background: #4a90e2;
             border-radius: 50%;
             cursor: grab;
-            display: flex;
+            display: none;
             align-items: center;
             justify-content: center;
             font-size: 20px;
             touch-action: none;
+        }
+
+        .collage-image.selected .rotate-handle {
+            display: flex;
         }
 
         .collage-image .rotate-handle:active {
@@ -241,11 +331,35 @@
             background: #e24a4a;
             border-radius: 50%;
             cursor: pointer;
-            display: flex;
+            display: none;
             align-items: center;
             justify-content: center;
             font-size: 22px;
             line-height: 1;
+        }
+
+        .collage-image.selected .delete-btn {
+            display: flex;
+        }
+
+        .collage-image .scale-handle {
+            position: absolute;
+            bottom: -15px;
+            right: -15px;
+            width: 35px;
+            height: 35px;
+            background: #4a90e2;
+            border-radius: 50%;
+            cursor: nwse-resize;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            touch-action: none;
+        }
+
+        .collage-image.selected .scale-handle {
+            display: flex;
         }
 
         .history-container {
@@ -414,6 +528,10 @@
                     <input type="text" id="collageName" placeholder="Enter collage name">
                 </div>
                 <div class="control-group">
+                    <label>Canvas Zoom: <span id="zoomValue">100%</span></label>
+                    <input type="range" id="zoomSlider" min="50" max="300" value="100" oninput="updateCanvasZoom(this.value)">
+                </div>
+                <div class="control-group">
                     <label>Add Images</label>
                     <input type="file" id="imageUpload" accept="image/*" multiple onchange="addImages(event)">
                 </div>
@@ -421,7 +539,12 @@
                 <button onclick="createNewCollage()">Create New Collage</button>
                 <button class="delete" onclick="deleteCollage()">Delete Current Collage</button>
             </div>
-            <div class="collage-container" id="collageContainer"></div>
+            <div class="collage-wrapper" id="collageWrapper">
+                <div class="collage-container" id="collageContainer">
+                    <div class="collage-canvas" id="collageCanvas"></div>
+                </div>
+                <div class="fullscreen-btn" onclick="enterFullscreen()">⛶</div>
+            </div>
         </div>
 
         <div class="page" id="historyPage">
@@ -457,15 +580,20 @@
         let currentCollageId = null;
         let historyRows = [];
         let draggedElement = null;
+        let selectedElement = null;
         let isDragging = false;
         let isRotating = false;
+        let isScaling = false;
         let startX = 0;
         let startY = 0;
         let startLeft = 0;
         let startTop = 0;
+        let startWidth = 0;
+        let startDistance = 0;
         let rotateStartAngle = 0;
         let currentRotation = 0;
         let currentEditingRowIndex = null;
+        let canvasZoom = 100;
 
         function init() {
             loadFromStorage();
@@ -481,6 +609,12 @@
             }
 
             setupTouchHandlers();
+            
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.collage-image')) {
+                    deselectAll();
+                }
+            });
         }
 
         function loadFromStorage() {
@@ -535,6 +669,45 @@
                 const historyOption = option.cloneNode(true);
                 historySelect.appendChild(historyOption);
             });
+        }
+
+        function updateCanvasZoom(value) {
+            canvasZoom = parseInt(value);
+            document.getElementById('zoomValue').textContent = canvasZoom + '%';
+            const canvas = document.getElementById('collageCanvas');
+            canvas.style.width = canvasZoom + '%';
+            canvas.style.height = canvasZoom + '%';
+        }
+
+        function enterFullscreen() {
+            const wrapper = document.getElementById('collageWrapper');
+            wrapper.classList.add('fullscreen-mode');
+            
+            const exitBtn = document.createElement('div');
+            exitBtn.className = 'exit-fullscreen';
+            exitBtn.innerHTML = '×';
+            exitBtn.onclick = exitFullscreen;
+            wrapper.appendChild(exitBtn);
+        }
+
+        function exitFullscreen() {
+            const wrapper = document.getElementById('collageWrapper');
+            wrapper.classList.remove('fullscreen-mode');
+            const exitBtn = wrapper.querySelector('.exit-fullscreen');
+            if (exitBtn) exitBtn.remove();
+        }
+
+        function deselectAll() {
+            document.querySelectorAll('.collage-image').forEach(el => {
+                el.classList.remove('selected');
+            });
+            selectedElement = null;
+        }
+
+        function selectImage(element) {
+            deselectAll();
+            element.classList.add('selected');
+            selectedElement = element;
         }
 
         function createNewCollage() {
@@ -595,7 +768,7 @@
                 
                 currentCollageId = null;
                 document.getElementById('collageName').value = '';
-                document.getElementById('collageContainer').innerHTML = '';
+                document.getElementById('collageCanvas').innerHTML = '';
                 updateCollageSelect();
                 saveToStorage();
                 renderHistory();
@@ -609,9 +782,9 @@
             }
 
             const files = event.target.files;
-            const container = document.getElementById('collageContainer');
-            const containerWidth = container.offsetWidth;
-            const containerHeight = container.offsetHeight;
+            const canvas = document.getElementById('collageCanvas');
+            const canvasWidth = canvas.offsetWidth;
+            const canvasHeight = canvas.offsetHeight;
 
             Array.from(files).forEach((file, index) => {
                 const reader = new FileReader();
@@ -619,8 +792,8 @@
                     const imageData = {
                         id: 'img_' + Date.now() + '_' + index,
                         src: e.target.result,
-                        x: Math.random() * (containerWidth - 200),
-                        y: Math.random() * (containerHeight - 200),
+                        x: Math.random() * (canvasWidth - 200),
+                        y: Math.random() * (canvasHeight - 200),
                         width: 120 + Math.random() * 80,
                         rotation: (Math.random() - 0.5) * 20
                     };
@@ -637,8 +810,8 @@
         }
 
         function renderCollage() {
-            const container = document.getElementById('collageContainer');
-            container.innerHTML = '';
+            const canvas = document.getElementById('collageCanvas');
+            canvas.innerHTML = '';
 
             if (currentCollageId && collages[currentCollageId]) {
                 collages[currentCollageId].images.forEach(imageData => {
@@ -648,7 +821,7 @@
         }
 
         function createImageElement(imageData) {
-            const container = document.getElementById('collageContainer');
+            const canvas = document.getElementById('collageCanvas');
             const div = document.createElement('div');
             div.className = 'collage-image';
             div.dataset.id = imageData.id;
@@ -665,6 +838,10 @@
             rotateHandle.className = 'rotate-handle';
             rotateHandle.innerHTML = '↻';
             
+            const scaleHandle = document.createElement('div');
+            scaleHandle.className = 'scale-handle';
+            scaleHandle.innerHTML = '⇲';
+            
             const deleteBtn = document.createElement('div');
             deleteBtn.className = 'delete-btn';
             deleteBtn.innerHTML = '×';
@@ -675,8 +852,9 @@
 
             div.appendChild(img);
             div.appendChild(rotateHandle);
+            div.appendChild(scaleHandle);
             div.appendChild(deleteBtn);
-            container.appendChild(div);
+            canvas.appendChild(div);
         }
 
         function setupTouchHandlers() {
@@ -700,6 +878,7 @@
                     target : target.closest('.collage-image');
                 
                 const rotateHandle = collageImage.querySelector('.rotate-handle');
+                const scaleHandle = collageImage.querySelector('.scale-handle');
                 
                 if (target === rotateHandle || target.closest('.rotate-handle')) {
                     e.preventDefault();
@@ -719,8 +898,21 @@
                     const match = transform.match(/rotate\((.+?)deg\)/);
                     currentRotation = match ? parseFloat(match[1]) : 0;
                     
+                } else if (target === scaleHandle || target.closest('.scale-handle')) {
+                    e.preventDefault();
+                    isScaling = true;
+                    draggedElement = collageImage;
+                    
+                    const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
+                    const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+                    
+                    startX = clientX;
+                    startY = clientY;
+                    startWidth = parseInt(collageImage.style.width);
+                    
                 } else if (!target.classList.contains('delete-btn')) {
                     e.preventDefault();
+                    selectImage(collageImage);
                     isDragging = true;
                     draggedElement = collageImage;
                     draggedElement.classList.add('dragging');
@@ -752,6 +944,16 @@
                 const rotation = currentRotation + (angle - rotateStartAngle) * (180 / Math.PI);
                 draggedElement.style.transform = `rotate(${rotation}deg)`;
                 
+            } else if (isScaling) {
+                const deltaX = clientX - startX;
+                const deltaY = clientY - startY;
+                const delta = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                const direction = deltaX + deltaY > 0 ? 1 : -1;
+                const newWidth = Math.max(50, startWidth + (delta * direction));
+                
+                draggedElement.style.width = newWidth + 'px';
+                draggedElement.style.height = newWidth + 'px';
+                
             } else if (isDragging) {
                 const deltaX = clientX - startX;
                 const deltaY = clientY - startY;
@@ -771,6 +973,7 @@
                 if (img) {
                     img.x = parseInt(draggedElement.style.left);
                     img.y = parseInt(draggedElement.style.top);
+                    img.width = parseInt(draggedElement.style.width);
                     
                     const transform = draggedElement.style.transform;
                     const match = transform.match(/rotate\((.+?)deg\)/);
@@ -786,6 +989,7 @@
                 draggedElement = null;
                 isDragging = false;
                 isRotating = false;
+                isScaling = false;
             }
         }
 
@@ -957,16 +1161,17 @@
                 saveToStorage();
                 renderHistory();
                 closeSelectCollageModal();
-            currentCollageId = id;
-            document.getElementById('collageSelect').value = id;
-            document.getElementById('collageName').value = newName;
-            navigateTo('vision');
-        } else {
-            alert('Please select a collage or enter a name for a new one');
+                
+                currentCollageId = id;
+                document.getElementById('collageSelect').value = id;
+                document.getElementById('collageName').value = newName;
+                navigateTo('vision');
+            } else {
+                alert('Please select a collage or enter a name for a new one');
+            }
         }
-    }
 
-    init();
-</script>
+        init();
+    </script>
 </body>
 </html>
