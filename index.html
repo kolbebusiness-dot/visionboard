@@ -246,18 +246,19 @@
 
         .canvas-scale-btn {
             position: absolute;
-            bottom: 10px;
-            left: 10px;
-            width: 45px;
-            height: 45px;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 35px;
             background: rgba(74, 144, 226, 0.9);
-            border-radius: 50%;
+            border-radius: 8px 8px 0 0;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             z-index: 50;
-            font-size: 20px;
+            font-size: 18px;
             touch-action: none;
         }
 
@@ -638,7 +639,8 @@
             setupCanvasHandlers();
             
             document.addEventListener('click', function(e) {
-                if (!e.target.closest('.collage-image')) {
+                // If clicking outside of any image and there's a selected element
+                if (!e.target.closest('.collage-image') && selectedElement) {
                     deselectAll();
                 }
             });
@@ -712,7 +714,9 @@
             const scaleBtn = document.getElementById('canvasScaleBtn');
 
             container.addEventListener('mousedown', function(e) {
-                if (e.target === container && !e.target.closest('.collage-image')) {
+                if (!e.target.closest('.collage-image') && 
+                    !e.target.closest('.canvas-scale-btn') && 
+                    !e.target.closest('.fullscreen-btn')) {
                     isCanvasDragging = true;
                     startX = e.clientX;
                     startY = e.clientY;
@@ -723,14 +727,16 @@
             });
 
             container.addEventListener('touchstart', function(e) {
-                if (e.target === container && !e.target.closest('.collage-image')) {
+                if (!e.target.closest('.collage-image') && 
+                    !e.target.closest('.canvas-scale-btn') && 
+                    !e.target.closest('.fullscreen-btn')) {
                     isCanvasDragging = true;
                     startX = e.touches[0].clientX;
                     startY = e.touches[0].clientY;
                     startLeft = canvasX;
                     startTop = canvasY;
                 }
-            }, { passive: false });
+            }, { passive: true });
 
             scaleBtn.addEventListener('mousedown', function(e) {
                 e.stopPropagation();
@@ -779,7 +785,7 @@
                     canvasScale = Math.max(0.5, Math.min(3, startWidth + delta));
                     canvas.style.transform = `translate(${canvasX}px, ${canvasY}px) scale(${canvasScale})`;
                 }
-            }, { passive: false });
+            }, { passive: true });
 
             document.addEventListener('mouseup', function() {
                 isCanvasDragging = false;
@@ -1072,28 +1078,18 @@
                 draggedElement.style.height = newWidth + 'px';
                 
             } else if (isDragging) {
-                // Check if touch/mouse is still over the dragged element
-                const rect = draggedElement.getBoundingClientRect();
-                const isOverElement = clientX >= rect.left && clientX <= rect.right && 
-                                     clientY >= rect.top && clientY <= rect.bottom;
+                e.preventDefault();
+                const deltaX = clientX - startX;
+                const deltaY = clientY - startY;
+                const newLeft = startLeft + deltaX;
+                const newTop = startTop + deltaY;
                 
-                if (isOverElement) {
-                    e.preventDefault();
-                    const deltaX = clientX - startX;
-                    const deltaY = clientY - startY;
-                    const newLeft = startLeft + deltaX;
-                    const newTop = startTop + deltaY;
-                    
-                    draggedElement.style.left = newLeft + 'px';
-                    draggedElement.style.top = newTop + 'px';
-                } else {
-                    // Stop dragging if finger/mouse leaves the image
-                    handleEnd();
-                }
+                draggedElement.style.left = newLeft + 'px';
+                draggedElement.style.top = newTop + 'px';
             }
         }
 
-        function handleEnd() {
+        function handleEnd(e) {
             if (draggedElement) {
                 const id = draggedElement.dataset.id;
                 const img = collages[currentCollageId].images.find(i => i.id === id);
@@ -1114,6 +1110,21 @@
                 }
                 
                 draggedElement.classList.remove('dragging');
+                
+                // Check if the touch/click ended outside the image
+                if (e && (isRotating || isScaling || isDragging)) {
+                    const clientX = e.type === 'touchend' ? (e.changedTouches[0]?.clientX || startX) : e.clientX;
+                    const clientY = e.type === 'touchend' ? (e.changedTouches[0]?.clientY || startY) : e.clientY;
+                    
+                    const rect = draggedElement.getBoundingClientRect();
+                    const isOutside = clientX < rect.left || clientX > rect.right || 
+                                     clientY < rect.top || clientY > rect.bottom;
+                    
+                    if (isOutside) {
+                        deselectAll();
+                    }
+                }
+                
                 draggedElement = null;
                 isDragging = false;
                 isRotating = false;
