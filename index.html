@@ -465,12 +465,17 @@
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 10px;
-            grid-auto-rows: auto;
+            grid-auto-rows: minmax(0, 1fr);
         }
 
         .fullscreen-grid .grid-item {
             aspect-ratio: 1;
-            cursor: default;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+
+        .fullscreen-grid .grid-item img {
+            pointer-events: auto;
         }
 
         .fullscreen-close {
@@ -488,6 +493,48 @@
             font-size: 24px;
             line-height: 1;
             z-index: 510;
+        }
+
+        .image-fullscreen-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 600;
+            background: #000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .image-fullscreen-overlay.active {
+            display: flex;
+        }
+
+        .image-fullscreen-overlay img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .image-fullscreen-close {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            width: 40px;
+            height: 40px;
+            background: rgba(226, 74, 74, 0.9);
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            line-height: 1;
+            z-index: 610;
         }
     </style>
 </head>
@@ -512,21 +559,21 @@
         <div class="page active" id="visionPage">
             <div class="controls">
                 <div class="control-group">
+                    <label>Board Name</label>
+                    <input type="text" id="boardName" placeholder="Enter board name">
+                </div>
+                <button onclick="createNewBoard()">Create New Board</button>
+                <div class="control-group">
                     <label>Select Board</label>
                     <select id="boardSelect" onchange="loadBoard()">
                         <option value="">Select a board...</option>
                     </select>
                 </div>
                 <div class="control-group">
-                    <label>Board Name</label>
-                    <input type="text" id="boardName" placeholder="Enter board name">
-                </div>
-                <div class="control-group">
                     <label>Add Images</label>
                     <input type="file" id="imageUpload" accept="image/*" multiple onchange="addImages(event)">
                 </div>
                 <button onclick="saveBoard()">Save Board</button>
-                <button onclick="createNewBoard()">Create New Board</button>
                 <button class="delete" onclick="deleteBoard()">Delete Current Board</button>
             </div>
             <div class="grid-container vision-grid" id="visionGrid">
@@ -546,6 +593,11 @@
     <div class="fullscreen-overlay" id="fullscreenOverlay">
         <div class="fullscreen-close" onclick="closeFullscreenVision()">×</div>
         <div class="fullscreen-grid" id="fullscreenGrid"></div>
+    </div>
+
+    <div class="image-fullscreen-overlay" id="imageFullscreenOverlay">
+        <div class="image-fullscreen-close" onclick="closeImageFullscreen()">×</div>
+        <img id="imageFullscreenImg" src="" alt="">
     </div>
 
     <div class="modal" id="selectBoardModal">
@@ -672,21 +724,24 @@
         }
 
         function createNewBoard() {
-            const id = 'board_' + Date.now();
-            const name = prompt('Enter board name:', 'New Board');
+            const name = document.getElementById('boardName').value.trim();
             
-            if (name) {
-                boards[id] = {
-                    name: name,
-                    images: []
-                };
-                currentBoardId = id;
-                updateBoardSelect();
-                document.getElementById('boardSelect').value = id;
-                document.getElementById('boardName').value = name;
-                renderGrid();
-                saveToStorage();
+            if (!name) {
+                alert('Please enter a board name first');
+                return;
             }
+            
+            const id = 'board_' + Date.now();
+            boards[id] = {
+                name: name,
+                images: []
+            };
+            currentBoardId = id;
+            updateBoardSelect();
+            document.getElementById('boardSelect').value = id;
+            renderGrid();
+            saveToStorage();
+            alert('New board created! You can now add images.');
         }
 
         function loadBoard() {
@@ -711,6 +766,7 @@
                 document.getElementById('boardSelect').value = currentBoardId;
                 saveToStorage();
                 renderHistory();
+                renderGrid();
                 alert('Board saved successfully!');
             } else {
                 alert('Please enter a board name');
@@ -735,6 +791,7 @@
                 updateBoardSelect();
                 saveToStorage();
                 renderHistory();
+                renderGrid();
             }
         }
 
@@ -818,8 +875,16 @@
                 boards[currentBoardId].images.forEach((imageSrc, index) => {
                     const item = document.createElement('div');
                     item.className = 'grid-item';
+                    item.onclick = function(e) {
+                        e.stopPropagation();
+                        showImageFullscreen(imageSrc);
+                    };
                     const img = document.createElement('img');
                     img.src = imageSrc;
+                    img.onclick = function(e) {
+                        e.stopPropagation();
+                        showImageFullscreen(imageSrc);
+                    };
                     item.appendChild(img);
                     grid.appendChild(item);
                 });
@@ -832,6 +897,17 @@
         function closeFullscreenVision() {
             document.getElementById('fullscreenOverlay').classList.remove('active');
             document.body.classList.remove('fullscreen-active');
+        }
+
+        function showImageFullscreen(imageSrc) {
+            const overlay = document.getElementById('imageFullscreenOverlay');
+            const img = document.getElementById('imageFullscreenImg');
+            img.src = imageSrc;
+            overlay.classList.add('active');
+        }
+
+        function closeImageFullscreen() {
+            document.getElementById('imageFullscreenOverlay').classList.remove('active');
         }
 
         function createGridItem(imageSrc, index, interactive) {
@@ -915,34 +991,6 @@
                     items[newIndex].classList.add('selected');
                 }
             }, 10);
-        }
-
-        function handleDragStart(e) {
-            // Removed - no longer using drag and drop
-        }
-
-        function handleDragOver(e) {
-            // Removed - no longer using drag and drop
-        }
-
-        function handleDrop(e) {
-            // Removed - no longer using drag and drop
-        }
-
-        function handleDragEnd(e) {
-            // Removed - no longer using drag and drop
-        }
-
-        function handleTouchStart(e) {
-            // Removed - no longer using drag and drop
-        }
-
-        function handleTouchMove(e) {
-            // Removed - no longer using drag and drop
-        }
-
-        function handleTouchEnd(e) {
-            // Removed - no longer using drag and drop
         }
 
         function removeImage(index) {
