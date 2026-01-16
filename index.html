@@ -222,13 +222,13 @@
         .vision-grid {
             grid-template-columns: repeat(2, 1fr);
             min-height: 70vh;
-            grid-auto-rows: 1fr;
+            grid-auto-rows: auto;
         }
 
         .history-grid {
             grid-template-columns: repeat(3, 1fr);
             min-height: 40vh;
-            grid-auto-rows: 1fr;
+            grid-auto-rows: auto;
         }
 
         .grid-item {
@@ -470,7 +470,7 @@
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 10px;
-            grid-auto-rows: 1fr;
+            grid-auto-rows: auto;
         }
 
         .fullscreen-grid .grid-item {
@@ -646,16 +646,12 @@
     <div class="modal" id="selectBoardModal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeSelectBoardModal()">&times;</span>
-            <h2>Select or Create Board</h2>
+            <h2>Select Board</h2>
             <div class="control-group">
-                <label>Choose Existing Board</label>
+                <label>Choose Board</label>
                 <select id="historyBoardSelect">
-                    <option value="">Create new board...</option>
+                    <option value="">Select a board...</option>
                 </select>
-            </div>
-            <div class="control-group">
-                <label>Or Create New Board</label>
-                <input type="text" id="newHistoryBoardName" placeholder="New board name">
             </div>
             <button onclick="confirmBoardSelection()">Continue</button>
             <button onclick="closeSelectBoardModal()">Cancel</button>
@@ -722,10 +718,13 @@
                     const data = JSON.parse(saved);
                     boards = data.boards || {};
                     historyRows = data.historyRows || [];
-                    console.log('Loaded from storage:', data);
+                    console.log('✓ Loaded from storage. Boards:', Object.keys(boards).length, 'History rows:', historyRows.length);
+                    console.log('Data:', data);
+                } else {
+                    console.log('No saved data found in localStorage');
                 }
             } catch (e) {
-                console.error('Error loading from storage:', e);
+                console.error('✗ Error loading from storage:', e);
             }
         }
 
@@ -735,10 +734,20 @@
                     boards: boards,
                     historyRows: historyRows
                 };
-                localStorage.setItem('visionBoardData', JSON.stringify(data));
-                console.log('Saved to storage:', data);
+                const jsonString = JSON.stringify(data);
+                localStorage.setItem('visionBoardData', jsonString);
+                
+                // Verify it was saved
+                const verification = localStorage.getItem('visionBoardData');
+                if (verification === jsonString) {
+                    console.log('✓ Successfully saved to localStorage. Boards:', Object.keys(boards).length, 'History rows:', historyRows.length);
+                    console.log('Data:', data);
+                } else {
+                    console.error('✗ Save verification failed!');
+                }
             } catch (e) {
-                console.error('Error saving to storage:', e);
+                console.error('✗ Error saving to storage:', e);
+                alert('Error saving data: ' + e.message);
             }
         }
 
@@ -767,7 +776,7 @@
             const historySelect = document.getElementById('historyBoardSelect');
             
             select.innerHTML = '<option value="">Select a board...</option>';
-            historySelect.innerHTML = '<option value="">Create new board...</option>';
+            historySelect.innerHTML = '<option value="">Select a board...</option>';
             
             Object.keys(boards).forEach(id => {
                 const option = document.createElement('option');
@@ -833,9 +842,22 @@
                 return;
             }
             
+            console.log('Saving board:', currentBoardId, boards[currentBoardId]);
             saveToStorage();
             renderHistory();
-            alert('Board saved successfully!');
+            
+            // Double-check the save worked
+            const verification = localStorage.getItem('visionBoardData');
+            if (verification) {
+                const parsed = JSON.parse(verification);
+                if (parsed.boards && parsed.boards[currentBoardId]) {
+                    alert('Board saved successfully!\n\nBoard: ' + boards[currentBoardId].name + '\nImages: ' + boards[currentBoardId].images.length);
+                } else {
+                    alert('Warning: Save may have failed. Check console.');
+                }
+            } else {
+                alert('Error: Could not verify save!');
+            }
         }
 
         function deleteBoard() {
@@ -1249,7 +1271,6 @@
 
         function closeSelectBoardModal() {
             document.getElementById('selectBoardModal').classList.remove('active');
-            document.getElementById('newHistoryBoardName').value = '';
             currentEditingRowIndex = null;
         }
 
@@ -1257,30 +1278,14 @@
             if (currentEditingRowIndex === null) return;
 
             const selectValue = document.getElementById('historyBoardSelect').value;
-            const newName = document.getElementById('newHistoryBoardName').value.trim();
 
             if (selectValue) {
                 historyRows[currentEditingRowIndex].boardId = selectValue;
                 saveToStorage();
                 renderHistory();
                 closeSelectBoardModal();
-            } else if (newName) {
-                const id = 'board_' + Date.now();
-                boards[id] = {
-                    name: newName,
-                    images: []
-                };
-                historyRows[currentEditingRowIndex].boardId = id;
-                saveToStorage();
-                updateBoardSelect();
-                renderHistory();
-                closeSelectBoardModal();
-                
-                currentBoardId = id;
-                document.getElementById('boardSelect').value = id;
-                navigateTo('vision');
             } else {
-                alert('Please select a board or enter a name for a new one');
+                alert('Please select a board');
             }
         }
 
