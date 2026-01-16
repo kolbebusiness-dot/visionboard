@@ -540,6 +540,60 @@
             z-index: 610;
         }
 
+        .progress-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 700;
+        }
+
+        .progress-overlay.active {
+            display: flex;
+        }
+
+        .progress-container {
+            background: #1a1a1a;
+            padding: 30px;
+            border-radius: 10px;
+            width: 80%;
+            max-width: 400px;
+        }
+
+        .progress-text {
+            color: #fff;
+            font-size: 16px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 30px;
+            background: rgba(50, 50, 50, 0.9);
+            border-radius: 15px;
+            overflow: hidden;
+            border: 1px solid #555;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4a90e2, #5aa0f2);
+            width: 0%;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
         .current-board-name {
             font-size: 14px;
             color: #aaa;
@@ -639,6 +693,15 @@
         <img id="imageFullscreenImg" src="" alt="" onclick="event.stopPropagation()">
     </div>
 
+    <div class="progress-overlay" id="progressOverlay">
+        <div class="progress-container">
+            <div class="progress-text" id="progressText">Compressing images...</div>
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="progressBarFill">0%</div>
+            </div>
+        </div>
+    </div>
+
     <div class="modal" id="selectBoardModal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeSelectBoardModal()">&times;</span>
@@ -694,6 +757,24 @@
                 reader.onerror = reject;
                 reader.readAsDataURL(file);
             });
+        }
+
+        // Progress bar functions
+        function showProgress(text) {
+            document.getElementById('progressOverlay').classList.add('active');
+            document.getElementById('progressText').textContent = text;
+            document.getElementById('progressBarFill').style.width = '0%';
+            document.getElementById('progressBarFill').textContent = '0%';
+        }
+
+        function updateProgress(current, total) {
+            const percent = Math.round((current / total) * 100);
+            document.getElementById('progressBarFill').style.width = percent + '%';
+            document.getElementById('progressBarFill').textContent = percent + '%';
+        }
+
+        function hideProgress() {
+            document.getElementById('progressOverlay').classList.remove('active');
         }
 
         // Check localStorage usage
@@ -967,12 +1048,14 @@
             const totalFiles = files.length;
             let compressionErrors = 0;
 
-            alert('Compressing ' + totalFiles + ' image(s)...');
+            showProgress('Compressing ' + totalFiles + ' image(s)...');
+            updateProgress(0, totalFiles);
 
             Array.from(files).forEach((file) => {
                 compressImage(file, 800, 0.7).then((compressedDataUrl) => {
                     boards[currentBoardId].images.push(compressedDataUrl);
                     loadedCount++;
+                    updateProgress(loadedCount, totalFiles);
                     
                     if (loadedCount === totalFiles) {
                         try {
@@ -980,8 +1063,14 @@
                             renderGrid();
                             renderHistory();
                             console.log('All images compressed and saved. Total images:', boards[currentBoardId].images.length);
-                            alert('Successfully added ' + totalFiles + ' image(s)!\n\nStorage used: ' + getStorageUsageMB() + ' MB');
+                            
+                            // Hide progress and show success message
+                            setTimeout(() => {
+                                hideProgress();
+                                alert('Successfully added ' + totalFiles + ' image(s)!\n\nStorage used: ' + getStorageUsageMB() + ' MB');
+                            }, 300);
                         } catch (e) {
+                            hideProgress();
                             if (e.name === 'QuotaExceededError' || e.message.includes('quota')) {
                                 alert('ERROR: Storage full!\n\nYou need to:\n1. Delete some boards or images\n2. Use fewer/smaller images\n\nStorage used: ' + getStorageUsageMB() + ' MB');
                                 // Remove the images we just tried to add
@@ -998,8 +1087,10 @@
                     console.error('Error compressing image:', error);
                     compressionErrors++;
                     loadedCount++;
+                    updateProgress(loadedCount, totalFiles);
                     
                     if (loadedCount === totalFiles) {
+                        hideProgress();
                         if (compressionErrors < totalFiles) {
                             saveToStorage();
                             renderGrid();
