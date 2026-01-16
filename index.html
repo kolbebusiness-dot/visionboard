@@ -24,6 +24,14 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: #000;
             color: #fff;
+            overflow-x: hidden;
+        }
+
+        body.fullscreen-active {
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
         }
 
         .header {
@@ -212,11 +220,13 @@
         .vision-grid {
             grid-template-columns: repeat(2, 1fr);
             min-height: 70vh;
+            grid-auto-rows: auto;
         }
 
         .history-grid {
             grid-template-columns: repeat(3, 1fr);
             min-height: 40vh;
+            grid-auto-rows: auto;
         }
 
         .grid-item {
@@ -455,6 +465,7 @@
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 10px;
+            grid-auto-rows: auto;
         }
 
         .fullscreen-grid .grid-item {
@@ -592,6 +603,18 @@
             
             loadBoard();
             showFullscreenVision();
+            
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.grid-item') && 
+                    !e.target.closest('.delete-btn') && 
+                    !e.target.closest('.move-left-btn') && 
+                    !e.target.closest('.move-right-btn')) {
+                    document.querySelectorAll('.grid-item').forEach(item => {
+                        item.classList.remove('selected');
+                    });
+                    selectedImageIndex = -1;
+                }
+            });
         }
 
         function loadFromStorage() {
@@ -688,7 +711,9 @@
                 document.getElementById('boardSelect').value = currentBoardId;
                 saveToStorage();
                 renderHistory();
-                alert('Board saved!');
+                alert('Board saved successfully!');
+            } else {
+                alert('Please enter a board name');
             }
         }
 
@@ -725,25 +750,27 @@
                 return;
             }
 
+            if (!boards[currentBoardId].images) {
+                boards[currentBoardId].images = [];
+            }
+
             let loadedCount = 0;
             const totalFiles = files.length;
 
             Array.from(files).forEach((file) => {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    if (boards[currentBoardId] && boards[currentBoardId].images) {
-                        boards[currentBoardId].images.push(e.target.result);
-                    }
+                    boards[currentBoardId].images.push(e.target.result);
                     loadedCount++;
                     
                     if (loadedCount === totalFiles) {
                         saveToStorage();
                         renderGrid();
                         renderHistory();
-                        showFullscreenVision();
                     }
                 };
                 reader.onerror = function() {
+                    console.error('Error loading image');
                     loadedCount++;
                     if (loadedCount === totalFiles) {
                         saveToStorage();
@@ -798,11 +825,13 @@
                 });
             }
             
+            document.body.classList.add('fullscreen-active');
             overlay.classList.add('active');
         }
 
         function closeFullscreenVision() {
             document.getElementById('fullscreenOverlay').classList.remove('active');
+            document.body.classList.remove('fullscreen-active');
         }
 
         function createGridItem(imageSrc, index, interactive) {
