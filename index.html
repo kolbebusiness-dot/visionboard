@@ -634,9 +634,9 @@
         <div class="fullscreen-grid" id="fullscreenGrid"></div>
     </div>
 
-    <div class="image-fullscreen-overlay" id="imageFullscreenOverlay">
+    <div class="image-fullscreen-overlay" id="imageFullscreenOverlay" onclick="closeImageFullscreen()">
         <div class="image-fullscreen-close" onclick="closeImageFullscreen()">×</div>
-        <img id="imageFullscreenImg" src="" alt="">
+        <img id="imageFullscreenImg" src="" alt="" onclick="event.stopPropagation()">
     </div>
 
     <div class="modal" id="selectBoardModal">
