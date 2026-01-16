@@ -553,6 +553,33 @@
             border-radius: 5px;
             text-align: center;
         }
+
+        .select-board-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .select-board-row select {
+            flex: 1;
+        }
+
+        .rename-btn {
+            width: 40px;
+            height: 40px;
+            min-width: 40px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            margin-bottom: 10px;
+            background: rgba(70, 70, 70, 0.9);
+        }
+
+        .rename-btn:hover, .rename-btn:active {
+            background: rgba(90, 90, 90, 0.9);
+        }
     </style>
 </head>
 <body>
@@ -575,19 +602,21 @@
     <div class="main-content">
         <div class="page active" id="visionPage">
             <div class="controls">
-                <div class="current-board-name" id="currentBoardName">Current Board: Visionboard</div>
                 <button onclick="createNewBoard()">Create New Board</button>
                 <div class="control-group">
                     <label>Select Board</label>
-                    <select id="boardSelect" onchange="loadBoard()">
-                        <option value="">Select a board...</option>
-                    </select>
+                    <div class="select-board-row">
+                        <select id="boardSelect" onchange="loadBoard()">
+                            <option value="">Select a board...</option>
+                        </select>
+                        <button class="rename-btn" onclick="renameBoard()" title="Rename Board">✏️</button>
+                    </div>
                 </div>
                 <div class="control-group">
                     <label>Add Images</label>
                     <input type="file" id="imageUpload" accept="image/*" multiple onchange="addImages(event)">
                 </div>
-                <button onclick="renameBoard()">Rename Board</button>
+                <button onclick="saveBoard()">Save Board</button>
                 <button class="delete" onclick="deleteBoard()">Delete Current Board</button>
             </div>
             <div class="grid-container vision-grid" id="visionGrid">
@@ -665,7 +694,6 @@
             currentBoardId = visionboardId;
             updateBoardSelect();
             document.getElementById('boardSelect').value = visionboardId;
-            updateCurrentBoardDisplay();
             
             loadBoard();
             showFullscreenVision();
@@ -684,12 +712,7 @@
         }
 
         function updateCurrentBoardDisplay() {
-            const displayElement = document.getElementById('currentBoardName');
-            if (currentBoardId && boards[currentBoardId]) {
-                displayElement.textContent = 'Current Board: ' + boards[currentBoardId].name;
-            } else {
-                displayElement.textContent = 'No board selected';
-            }
+            // Function kept for compatibility but display removed
         }
 
         function loadFromStorage() {
@@ -773,7 +796,6 @@
             saveToStorage();
             updateBoardSelect();
             document.getElementById('boardSelect').value = id;
-            updateCurrentBoardDisplay();
             renderGrid();
             alert('New board "' + name.trim() + '" created!');
         }
@@ -792,7 +814,6 @@
                 saveToStorage();
                 updateBoardSelect();
                 document.getElementById('boardSelect').value = currentBoardId;
-                updateCurrentBoardDisplay();
                 renderHistory();
                 alert('Board renamed to "' + newName.trim() + '"');
             }
@@ -802,9 +823,19 @@
             const selectValue = document.getElementById('boardSelect').value;
             if (selectValue && boards[selectValue]) {
                 currentBoardId = selectValue;
-                updateCurrentBoardDisplay();
                 renderGrid();
             }
+        }
+
+        function saveBoard() {
+            if (!currentBoardId) {
+                alert('Please create or select a board first');
+                return;
+            }
+            
+            saveToStorage();
+            renderHistory();
+            alert('Board saved successfully!');
         }
 
         function deleteBoard() {
@@ -825,7 +856,6 @@
                 
                 currentBoardId = null;
                 document.getElementById('boardSelect').value = '';
-                updateCurrentBoardDisplay();
                 saveToStorage();
                 updateBoardSelect();
                 renderHistory();
@@ -1248,7 +1278,6 @@
                 
                 currentBoardId = id;
                 document.getElementById('boardSelect').value = id;
-                updateCurrentBoardDisplay();
                 navigateTo('vision');
             } else {
                 alert('Please select a board or enter a name for a new one');
