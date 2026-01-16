@@ -220,13 +220,13 @@
         .vision-grid {
             grid-template-columns: repeat(2, 1fr);
             min-height: 70vh;
-            grid-auto-rows: auto;
+            grid-auto-rows: 1fr;
         }
 
         .history-grid {
             grid-template-columns: repeat(3, 1fr);
             min-height: 40vh;
-            grid-auto-rows: auto;
+            grid-auto-rows: 1fr;
         }
 
         .grid-item {
@@ -237,7 +237,7 @@
             overflow: hidden;
             position: relative;
             cursor: move;
-            touch-action: none;
+            touch-action: pan-y;
         }
 
         .grid-item.dragging {
@@ -255,6 +255,7 @@
             height: 100%;
             object-fit: cover;
             pointer-events: none;
+            user-select: none;
         }
 
         .grid-item .delete-btn {
@@ -272,6 +273,7 @@
             font-size: 18px;
             line-height: 1;
             z-index: 10;
+            touch-action: none;
         }
 
         .grid-item .move-left-btn,
@@ -289,6 +291,7 @@
             font-size: 18px;
             line-height: 1;
             z-index: 10;
+            touch-action: none;
         }
 
         .grid-item .move-left-btn {
@@ -465,17 +468,18 @@
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 10px;
-            grid-auto-rows: minmax(0, 1fr);
+            grid-auto-rows: 1fr;
         }
 
         .fullscreen-grid .grid-item {
             aspect-ratio: 1;
             cursor: pointer;
-            pointer-events: auto;
+            touch-action: pan-y;
         }
 
         .fullscreen-grid .grid-item img {
-            pointer-events: auto;
+            pointer-events: none;
+            user-select: none;
         }
 
         .fullscreen-close {
@@ -493,6 +497,7 @@
             font-size: 24px;
             line-height: 1;
             z-index: 510;
+            touch-action: none;
         }
 
         .image-fullscreen-overlay {
@@ -661,7 +666,7 @@
                     !e.target.closest('.delete-btn') && 
                     !e.target.closest('.move-left-btn') && 
                     !e.target.closest('.move-right-btn')) {
-                    document.querySelectorAll('.grid-item').forEach(item => {
+                    document.querySelectorAll('#visionGrid .grid-item').forEach(item => {
                         item.classList.remove('selected');
                     });
                     selectedImageIndex = -1;
@@ -679,10 +684,12 @@
         }
 
         function saveToStorage() {
-            localStorage.setItem('visionBoardData', JSON.stringify({
+            const data = {
                 boards: boards,
                 historyRows: historyRows
-            }));
+            };
+            localStorage.setItem('visionBoardData', JSON.stringify(data));
+            console.log('Data saved to localStorage:', data);
         }
 
         function toggleMenu() {
@@ -737,11 +744,11 @@
                 images: []
             };
             currentBoardId = id;
+            saveToStorage();
             updateBoardSelect();
             document.getElementById('boardSelect').value = id;
             renderGrid();
-            saveToStorage();
-            alert('New board created! You can now add images.');
+            alert('New board "' + name + '" created! You can now add images.');
         }
 
         function loadBoard() {
@@ -762,12 +769,11 @@
             const name = document.getElementById('boardName').value.trim();
             if (name) {
                 boards[currentBoardId].name = name;
+                saveToStorage();
                 updateBoardSelect();
                 document.getElementById('boardSelect').value = currentBoardId;
-                saveToStorage();
                 renderHistory();
-                renderGrid();
-                alert('Board saved successfully!');
+                alert('Board "' + name + '" saved successfully!');
             } else {
                 alert('Please enter a board name');
             }
@@ -787,9 +793,9 @@
                 
                 currentBoardId = null;
                 document.getElementById('boardName').value = '';
-                document.getElementById('visionGrid').innerHTML = '';
-                updateBoardSelect();
+                document.getElementById('boardSelect').value = '';
                 saveToStorage();
+                updateBoardSelect();
                 renderHistory();
                 renderGrid();
             }
@@ -824,6 +830,7 @@
                         saveToStorage();
                         renderGrid();
                         renderHistory();
+                        console.log('Images added and saved. Total images:', boards[currentBoardId].images.length);
                     }
                 };
                 reader.onerror = function() {
@@ -843,24 +850,22 @@
 
         function renderGrid() {
             const grid = document.getElementById('visionGrid');
-            const fullscreenBtn = grid.querySelector('.fullscreen-board-btn');
             grid.innerHTML = '';
             
-            if (fullscreenBtn) {
-                grid.appendChild(fullscreenBtn);
-            } else {
-                const btn = document.createElement('button');
-                btn.className = 'fullscreen-board-btn';
-                btn.innerHTML = '⛶';
-                btn.onclick = showFullscreenVision;
-                grid.appendChild(btn);
-            }
+            const btn = document.createElement('button');
+            btn.className = 'fullscreen-board-btn';
+            btn.innerHTML = '⛶';
+            btn.onclick = showFullscreenVision;
+            grid.appendChild(btn);
 
-            if (currentBoardId && boards[currentBoardId]) {
+            if (currentBoardId && boards[currentBoardId] && boards[currentBoardId].images) {
+                console.log('Rendering grid for board:', currentBoardId, 'with', boards[currentBoardId].images.length, 'images');
                 boards[currentBoardId].images.forEach((imageSrc, index) => {
                     const item = createGridItem(imageSrc, index, true);
                     grid.appendChild(item);
                 });
+            } else {
+                console.log('No board or images to render');
             }
             
             selectedImageIndex = -1;
@@ -871,20 +876,38 @@
             const grid = document.getElementById('fullscreenGrid');
             grid.innerHTML = '';
             
-            if (currentBoardId && boards[currentBoardId]) {
+            if (currentBoardId && boards[currentBoardId] && boards[currentBoardId].images) {
                 boards[currentBoardId].images.forEach((imageSrc, index) => {
                     const item = document.createElement('div');
                     item.className = 'grid-item';
+                    
+                    let touchStartTime;
+                    let touchMoved = false;
+                    
+                    item.addEventListener('touchstart', function(e) {
+                        touchStartTime = Date.now();
+                        touchMoved = false;
+                    });
+                    
+                    item.addEventListener('touchmove', function(e) {
+                        touchMoved = true;
+                    });
+                    
+                    item.addEventListener('touchend', function(e) {
+                        const touchDuration = Date.now() - touchStartTime;
+                        if (!touchMoved && touchDuration < 300) {
+                            e.preventDefault();
+                            showImageFullscreen(imageSrc);
+                        }
+                    });
+                    
                     item.onclick = function(e) {
-                        e.stopPropagation();
+                        e.preventDefault();
                         showImageFullscreen(imageSrc);
                     };
+                    
                     const img = document.createElement('img');
                     img.src = imageSrc;
-                    img.onclick = function(e) {
-                        e.stopPropagation();
-                        showImageFullscreen(imageSrc);
-                    };
                     item.appendChild(img);
                     grid.appendChild(item);
                 });
@@ -950,10 +973,40 @@
                 };
                 item.appendChild(moveRightBtn);
 
+                let touchStartTime;
+                let touchMoved = false;
+                
+                item.addEventListener('touchstart', function(e) {
+                    touchStartTime = Date.now();
+                    touchMoved = false;
+                });
+                
+                item.addEventListener('touchmove', function(e) {
+                    touchMoved = true;
+                });
+                
+                item.addEventListener('touchend', function(e) {
+                    if (e.target === deleteBtn || e.target === moveLeftBtn || e.target === moveRightBtn) {
+                        return;
+                    }
+                    
+                    const touchDuration = Date.now() - touchStartTime;
+                    if (!touchMoved && touchDuration < 300) {
+                        document.querySelectorAll('#visionGrid .grid-item').forEach(i => i.classList.remove('selected'));
+                        
+                        if (selectedImageIndex === index) {
+                            selectedImageIndex = -1;
+                        } else {
+                            item.classList.add('selected');
+                            selectedImageIndex = index;
+                        }
+                    }
+                });
+                
                 item.onclick = function(e) {
                     if (e.target === deleteBtn || e.target === moveLeftBtn || e.target === moveRightBtn) return;
                     
-                    document.querySelectorAll('.grid-item').forEach(i => i.classList.remove('selected'));
+                    document.querySelectorAll('#visionGrid .grid-item').forEach(i => i.classList.remove('selected'));
                     
                     if (selectedImageIndex === index) {
                         selectedImageIndex = -1;
@@ -986,7 +1039,7 @@
             renderHistory();
             
             setTimeout(() => {
-                const items = document.querySelectorAll('.grid-item');
+                const items = document.querySelectorAll('#visionGrid .grid-item');
                 if (items[newIndex]) {
                     items[newIndex].classList.add('selected');
                 }
@@ -996,8 +1049,8 @@
         function removeImage(index) {
             if (currentBoardId && boards[currentBoardId]) {
                 boards[currentBoardId].images.splice(index, 1);
-                renderGrid();
                 saveToStorage();
+                renderGrid();
                 renderHistory();
             }
         }
@@ -1153,8 +1206,8 @@
                     images: []
                 };
                 historyRows[currentEditingRowIndex].boardId = id;
-                updateBoardSelect();
                 saveToStorage();
+                updateBoardSelect();
                 renderHistory();
                 closeSelectBoardModal();
                 
