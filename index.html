@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Vision Board App</title>
     <link rel="apple-touch-icon" href="icon.jpg">
+    <title>Vision Board App</title>
     <style>
         * {
             margin: 0;
@@ -188,6 +188,25 @@
             padding: 10px;
             display: grid;
             gap: 10px;
+            position: relative;
+        }
+
+        .fullscreen-board-btn {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            width: 45px;
+            height: 45px;
+            background: rgba(74, 144, 226, 0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 50;
+            font-size: 20px;
+            border: none;
+            color: white;
         }
 
         .vision-grid {
@@ -245,7 +264,34 @@
             z-index: 10;
         }
 
-        .grid-item.selected .delete-btn {
+        .grid-item .move-left-btn,
+        .grid-item .move-right-btn {
+            position: absolute;
+            bottom: 5px;
+            width: 35px;
+            height: 35px;
+            background: rgba(74, 144, 226, 0.9);
+            border-radius: 50%;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            line-height: 1;
+            z-index: 10;
+        }
+
+        .grid-item .move-left-btn {
+            left: 5px;
+        }
+
+        .grid-item .move-right-btn {
+            right: 5px;
+        }
+
+        .grid-item.selected .delete-btn,
+        .grid-item.selected .move-left-btn,
+        .grid-item.selected .move-right-btn {
             display: flex;
         }
 
@@ -393,6 +439,8 @@
             z-index: 500;
             background: #000;
             display: none;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .fullscreen-overlay.active {
@@ -407,11 +455,11 @@
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 10px;
-            overflow-y: auto;
         }
 
         .fullscreen-grid .grid-item {
             aspect-ratio: 1;
+            cursor: default;
         }
 
         .fullscreen-close {
@@ -470,7 +518,9 @@
                 <button onclick="createNewBoard()">Create New Board</button>
                 <button class="delete" onclick="deleteBoard()">Delete Current Board</button>
             </div>
-            <div class="grid-container vision-grid" id="visionGrid"></div>
+            <div class="grid-container vision-grid" id="visionGrid">
+                <button class="fullscreen-board-btn" onclick="showFullscreenVision()">⛶</button>
+            </div>
         </div>
 
         <div class="page" id="historyPage">
@@ -510,11 +560,7 @@
         let boards = {};
         let currentBoardId = null;
         let historyRows = [];
-        let draggedItem = null;
-        let draggedIndex = -1;
         let currentEditingRowIndex = null;
-        let longPressTimer = null;
-        let canDrag = false;
         let selectedImageIndex = -1;
 
         function init() {
@@ -713,7 +759,18 @@
 
         function renderGrid() {
             const grid = document.getElementById('visionGrid');
+            const fullscreenBtn = grid.querySelector('.fullscreen-board-btn');
             grid.innerHTML = '';
+            
+            if (fullscreenBtn) {
+                grid.appendChild(fullscreenBtn);
+            } else {
+                const btn = document.createElement('button');
+                btn.className = 'fullscreen-board-btn';
+                btn.innerHTML = '⛶';
+                btn.onclick = showFullscreenVision;
+                grid.appendChild(btn);
+            }
 
             if (currentBoardId && boards[currentBoardId]) {
                 boards[currentBoardId].images.forEach((imageSrc, index) => {
@@ -748,7 +805,7 @@
             document.getElementById('fullscreenOverlay').classList.remove('active');
         }
 
-        function createGridItem(imageSrc, index, draggable) {
+        function createGridItem(imageSrc, index, interactive) {
             const item = document.createElement('div');
             item.className = 'grid-item';
             item.dataset.index = index;
@@ -757,7 +814,7 @@
             img.src = imageSrc;
             item.appendChild(img);
             
-            if (draggable) {
+            if (interactive) {
                 const deleteBtn = document.createElement('div');
                 deleteBtn.className = 'delete-btn';
                 deleteBtn.innerHTML = '×';
@@ -768,8 +825,28 @@
                 };
                 item.appendChild(deleteBtn);
 
+                const moveLeftBtn = document.createElement('div');
+                moveLeftBtn.className = 'move-left-btn';
+                moveLeftBtn.innerHTML = '←';
+                moveLeftBtn.onclick = function(e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    moveImage(index, -1);
+                };
+                item.appendChild(moveLeftBtn);
+
+                const moveRightBtn = document.createElement('div');
+                moveRightBtn.className = 'move-right-btn';
+                moveRightBtn.innerHTML = '→';
+                moveRightBtn.onclick = function(e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    moveImage(index, 1);
+                };
+                item.appendChild(moveRightBtn);
+
                 item.onclick = function(e) {
-                    if (e.target === deleteBtn) return;
+                    if (e.target === deleteBtn || e.target === moveLeftBtn || e.target === moveRightBtn) return;
                     
                     document.querySelectorAll('.grid-item').forEach(i => i.classList.remove('selected'));
                     
@@ -780,155 +857,63 @@
                         selectedImageIndex = index;
                     }
                 };
-                
-                item.addEventListener('touchstart', handleTouchStart, { passive: false });
-                item.addEventListener('touchmove', handleTouchMove, { passive: false });
-                item.addEventListener('touchend', handleTouchEnd);
             }
             
             return item;
         }
 
+        function moveImage(currentIndex, direction) {
+            if (!currentBoardId || !boards[currentBoardId]) return;
+            
+            const images = boards[currentBoardId].images;
+            const newIndex = currentIndex + direction;
+            
+            if (newIndex < 0 || newIndex >= images.length) return;
+            
+            const temp = images[currentIndex];
+            images[currentIndex] = images[newIndex];
+            images[newIndex] = temp;
+            
+            selectedImageIndex = newIndex;
+            
+            saveToStorage();
+            renderGrid();
+            renderHistory();
+            
+            setTimeout(() => {
+                const items = document.querySelectorAll('.grid-item');
+                if (items[newIndex]) {
+                    items[newIndex].classList.add('selected');
+                }
+            }, 10);
+        }
+
         function handleDragStart(e) {
-            draggedItem = this;
-            draggedIndex = parseInt(this.dataset.index);
-            this.classList.add('dragging');
-            e.dataTransfer.effectAllowed = 'move';
+            // Removed - no longer using drag and drop
         }
 
         function handleDragOver(e) {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-            
-            const afterElement = this;
-            if (afterElement !== draggedItem) {
-                afterElement.classList.add('drag-over');
-            }
-            return false;
+            // Removed - no longer using drag and drop
         }
 
         function handleDrop(e) {
-            e.stopPropagation();
-            e.preventDefault();
-            
-            const dropIndex = parseInt(this.dataset.index);
-            
-            if (draggedIndex !== dropIndex) {
-                const images = boards[currentBoardId].images;
-                const draggedImage = images[draggedIndex];
-                images.splice(draggedIndex, 1);
-                images.splice(dropIndex, 0, draggedImage);
-                saveToStorage();
-                renderGrid();
-                renderHistory();
-            }
-            
-            return false;
+            // Removed - no longer using drag and drop
         }
 
         function handleDragEnd(e) {
-            document.querySelectorAll('.grid-item').forEach(item => {
-                item.classList.remove('dragging');
-                item.classList.remove('drag-over');
-            });
-            draggedItem = null;
-            draggedIndex = -1;
+            // Removed - no longer using drag and drop
         }
 
-        let touchStartX = 0;
-        let touchStartY = 0;
-        let touchMoved = false;
-
         function handleTouchStart(e) {
-            const target = e.target;
-            if (target.classList.contains('delete-btn') || target.closest('.delete-btn')) {
-                return;
-            }
-            
-            touchStartX = e.touches[0].clientX;
-            touchStartY = e.touches[0].clientY;
-            touchMoved = false;
-            canDrag = false;
-            
-            longPressTimer = setTimeout(() => {
-                if (!touchMoved) {
-                    canDrag = true;
-                    draggedItem = this;
-                    draggedIndex = parseInt(this.dataset.index);
-                    this.classList.add('dragging');
-                    navigator.vibrate && navigator.vibrate(50);
-                }
-            }, 500);
+            // Removed - no longer using drag and drop
         }
 
         function handleTouchMove(e) {
-            const touchX = e.touches[0].clientX;
-            const touchY = e.touches[0].clientY;
-            
-            if (Math.abs(touchX - touchStartX) > 10 || Math.abs(touchY - touchStartY) > 10) {
-                touchMoved = true;
-                
-                if (!canDrag) {
-                    clearTimeout(longPressTimer);
-                    return;
-                }
-            }
-            
-            if (!canDrag || !draggedItem) return;
-            
-            e.preventDefault();
-            
-            const element = document.elementFromPoint(touchX, touchY);
-            const gridItem = element?.closest('.grid-item');
-            
-            document.querySelectorAll('.grid-item').forEach(item => {
-                item.classList.remove('drag-over');
-            });
-            
-            if (gridItem && gridItem !== draggedItem) {
-                gridItem.classList.add('drag-over');
-            }
+            // Removed - no longer using drag and drop
         }
 
         function handleTouchEnd(e) {
-            clearTimeout(longPressTimer);
-            
-            if (!canDrag || !draggedItem || !touchMoved) {
-                document.querySelectorAll('.grid-item').forEach(item => {
-                    item.classList.remove('dragging');
-                    item.classList.remove('drag-over');
-                });
-                draggedItem = null;
-                canDrag = false;
-                return;
-            }
-            
-            const touchX = e.changedTouches[0].clientX;
-            const touchY = e.changedTouches[0].clientY;
-            const element = document.elementFromPoint(touchX, touchY);
-            const dropTarget = element?.closest('.grid-item');
-            
-            if (dropTarget && dropTarget !== draggedItem) {
-                const dropIndex = parseInt(dropTarget.dataset.index);
-                
-                if (draggedIndex !== dropIndex) {
-                    const images = boards[currentBoardId].images;
-                    const draggedImage = images[draggedIndex];
-                    images.splice(draggedIndex, 1);
-                    images.splice(dropIndex, 0, draggedImage);
-                    saveToStorage();
-                    renderGrid();
-                    renderHistory();
-                }
-            }
-            
-            document.querySelectorAll('.grid-item').forEach(item => {
-                item.classList.remove('dragging');
-                item.classList.remove('drag-over');
-            });
-            draggedItem = null;
-            draggedIndex = -1;
-            canDrag = false;
+            // Removed - no longer using drag and drop
         }
 
         function removeImage(index) {
