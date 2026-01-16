@@ -661,10 +661,75 @@
         let currentEditingRowIndex = null;
         let selectedImageIndex = -1;
 
+        // Image compression function
+        function compressImage(file, maxWidth = 800, quality = 0.7) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+                        
+                        // Resize if image is too large
+                        if (width > maxWidth) {
+                            height = (height * maxWidth) / width;
+                            width = maxWidth;
+                        }
+                        
+                        canvas.width = width;
+                        canvas.height = height;
+                        
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        // Convert to compressed base64
+                        const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+                        resolve(compressedDataUrl);
+                    };
+                    img.onerror = reject;
+                    img.src = e.target.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Check localStorage usage
+        function getStorageUsage() {
+            let total = 0;
+            for (let key in localStorage) {
+                if (localStorage.hasOwnProperty(key)) {
+                    total += localStorage[key].length + key.length;
+                }
+            }
+            return total;
+        }
+
+        function getStorageUsageMB() {
+            return (getStorageUsage() / (1024 * 1024)).toFixed(2);
+        }
+
+        function checkStorageSpace() {
+            const usageMB = getStorageUsageMB();
+            const limitMB = 5; // Most browsers have 5-10MB limit
+            
+            if (usageMB > limitMB * 0.9) {
+                alert('Warning: Storage is almost full (' + usageMB + ' MB used). Consider deleting old boards or images.');
+                return false;
+            }
+            return true;
+        }
+
         function init() {
             loadFromStorage();
             updateBoardSelect();
             renderHistory();
+            
+            // Show storage usage on startup
+            console.log('Storage usage:', getStorageUsageMB(), 'MB');
+            checkStorageSpace();
             
             let visionboardId = null;
             for (let id in boards) {
@@ -900,30 +965,51 @@
 
             let loadedCount = 0;
             const totalFiles = files.length;
+            let compressionErrors = 0;
+
+            alert('Compressing ' + totalFiles + ' image(s)...');
 
             Array.from(files).forEach((file) => {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    boards[currentBoardId].images.push(e.target.result);
+                compressImage(file, 800, 0.7).then((compressedDataUrl) => {
+                    boards[currentBoardId].images.push(compressedDataUrl);
                     loadedCount++;
                     
                     if (loadedCount === totalFiles) {
-                        saveToStorage();
-                        renderGrid();
-                        renderHistory();
-                        console.log('All images loaded. Total:', boards[currentBoardId].images.length);
+                        try {
+                            saveToStorage();
+                            renderGrid();
+                            renderHistory();
+                            console.log('All images compressed and saved. Total images:', boards[currentBoardId].images.length);
+                            alert('Successfully added ' + totalFiles + ' image(s)!\n\nStorage used: ' + getStorageUsageMB() + ' MB');
+                        } catch (e) {
+                            if (e.name === 'QuotaExceededError' || e.message.includes('quota')) {
+                                alert('ERROR: Storage full!\n\nYou need to:\n1. Delete some boards or images\n2. Use fewer/smaller images\n\nStorage used: ' + getStorageUsageMB() + ' MB');
+                                // Remove the images we just tried to add
+                                for (let i = 0; i < totalFiles; i++) {
+                                    boards[currentBoardId].images.pop();
+                                }
+                                renderGrid();
+                            } else {
+                                alert('Error saving: ' + e.message);
+                            }
+                        }
                     }
-                };
-                reader.onerror = function() {
-                    console.error('Error loading image');
+                }).catch((error) => {
+                    console.error('Error compressing image:', error);
+                    compressionErrors++;
                     loadedCount++;
+                    
                     if (loadedCount === totalFiles) {
-                        saveToStorage();
-                        renderGrid();
-                        renderHistory();
+                        if (compressionErrors < totalFiles) {
+                            saveToStorage();
+                            renderGrid();
+                            renderHistory();
+                            alert('Added ' + (totalFiles - compressionErrors) + ' of ' + totalFiles + ' images.\n' + compressionErrors + ' failed to compress.');
+                        } else {
+                            alert('Failed to compress all images. Please try different images.');
+                        }
                     }
-                };
-                reader.readAsDataURL(file);
+                });
             });
 
             event.target.value = '';
