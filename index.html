@@ -198,6 +198,7 @@
             display: grid;
             gap: 10px;
             position: relative;
+            align-content: start;
         }
 
         .fullscreen-board-btn {
@@ -221,14 +222,10 @@
 
         .vision-grid {
             grid-template-columns: repeat(2, 1fr);
-            min-height: 70vh;
-            grid-auto-rows: auto;
         }
 
         .history-grid {
             grid-template-columns: repeat(3, 1fr);
-            min-height: 40vh;
-            grid-auto-rows: auto;
         }
 
         .grid-item {
@@ -465,12 +462,11 @@
         .fullscreen-grid {
             width: 100%;
             height: auto;
-            min-height: 100vh;
             padding: 60px 10px 10px 10px;
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 10px;
-            grid-auto-rows: auto;
+            align-content: start;
         }
 
         .fullscreen-grid .grid-item {
