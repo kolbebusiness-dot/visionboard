@@ -401,12 +401,17 @@
 
         .fullscreen-grid {
             width: 100%;
-            height: 100vh;
+            height: auto;
+            min-height: 100vh;
             padding: 60px 10px 10px 10px;
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 10px;
             overflow-y: auto;
+        }
+
+        .fullscreen-grid .grid-item {
+            aspect-ratio: 1;
         }
 
         .fullscreen-close {
@@ -665,21 +670,38 @@
         function addImages(event) {
             if (!currentBoardId) {
                 alert('Please create or select a board first');
+                event.target.value = '';
                 return;
             }
 
             const files = event.target.files;
+            if (!files || files.length === 0) {
+                return;
+            }
+
             let loadedCount = 0;
+            const totalFiles = files.length;
 
             Array.from(files).forEach((file) => {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    boards[currentBoardId].images.push(e.target.result);
+                    if (boards[currentBoardId] && boards[currentBoardId].images) {
+                        boards[currentBoardId].images.push(e.target.result);
+                    }
                     loadedCount++;
                     
-                    if (loadedCount === files.length) {
-                        renderGrid();
+                    if (loadedCount === totalFiles) {
                         saveToStorage();
+                        renderGrid();
+                        renderHistory();
+                        showFullscreenVision();
+                    }
+                };
+                reader.onerror = function() {
+                    loadedCount++;
+                    if (loadedCount === totalFiles) {
+                        saveToStorage();
+                        renderGrid();
                         renderHistory();
                     }
                 };
